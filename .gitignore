@@ -39,3 +39,4 @@ frontend/node_modules/
 frontend/dist/
 frontend/.idea/
 frontend/.vscode/
+logs/*.log
