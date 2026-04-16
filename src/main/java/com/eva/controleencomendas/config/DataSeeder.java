@@ -6,8 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-
 @Component
 public class DataSeeder implements CommandLineRunner {
 
@@ -15,32 +13,19 @@ public class DataSeeder implements CommandLineRunner {
     private UsuarioRepository usuarioRepository;
 
     @Override
-    public void run(String... args) throws Exception {
-        // Verifica se o banco tem apenas o Admin (<= 1) para não criar duplicados toda vez que rodar
-        if (usuarioRepository.count() <= 1) {
+    public void run(String... args) {
+        ensureUser("janaina@eva.com", "1958", "Janaina");
+        ensureUser("veronica@eva.com", "1958", "Veronica");
+        ensureUser("ana@eva.com", "1958", "Ana");
+        ensureUser("vitor@eva.com", "1958", "Vitor");
+    }
 
-            Usuario u1 = new Usuario();
-            u1.setNome("Janaína");
-            u1.setUsername("janaina@eva.com");
-            u1.setSenha("1958");
-
-            Usuario u2 = new Usuario();
-            u2.setNome("Verônica");
-            u2.setUsername("veronica@eva.com");
-            u2.setSenha("1958");
-
-            Usuario u3 = new Usuario();
-            u3.setNome("Ana");
-            u3.setUsername("ana@eva.com");
-            u3.setSenha("1958");
-
-            Usuario u4 = new Usuario();
-            u4.setNome("Vitor");
-            u4.setUsername("vitor@eva.com");
-            u4.setSenha("1958");
-
-            usuarioRepository.saveAll(List.of(u1, u2, u3, u4));
-            System.out.println("✅ Contas de acesso dos funcionários criadas com sucesso!");
-        }
+    private void ensureUser(String username, String senha, String nome) {
+        Usuario usuario = usuarioRepository.findByUsername(username).orElseGet(Usuario::new);
+        usuario.setUsername(username);
+        usuario.setSenha(senha);
+        usuario.setNome(nome);
+        usuarioRepository.save(usuario);
+        System.out.println("USUARIO DE ACESSO GARANTIDO: " + username);
     }
 }

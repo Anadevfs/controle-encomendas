@@ -3,9 +3,9 @@ package com.eva.controleencomendas.controller;
 import com.eva.controleencomendas.model.Usuario;
 import com.eva.controleencomendas.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Optional;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -18,6 +18,6 @@ public class AuthController {
     @PostMapping("/login")
     public Usuario login(@RequestBody Usuario usuario) {
         return usuarioRepository.findByUsernameAndSenha(usuario.getUsername(), usuario.getSenha())
-                .orElseThrow(() -> new RuntimeException("Usuário ou senha inválidos!"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário ou senha inválidos!"));
     }
 }

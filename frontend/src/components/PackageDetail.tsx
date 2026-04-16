@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Package } from "@/data/mockData";
-import { Camera, CheckCircle2, RefreshCw, User, Building2, Clock, Info, UserCheck, ImageIcon, Send, Phone, ScanLine } from "lucide-react";
+import { Camera, CheckCircle2, RefreshCw, User, Building2, Clock, Info, UserCheck, ImageIcon, Send, Phone, ScanLine, type LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { Input } from "@/components/ui/input";
@@ -200,7 +200,7 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveTrackingCode }: PackageDetailP
   );
 };
 
-const DetailItem = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (
+const DetailItem = ({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) => (
   <div className="flex items-start gap-2.5">
     <div className="rounded-lg bg-eva-red-light p-1.5">
       <Icon className="h-3.5 w-3.5 text-primary" />
@@ -212,7 +212,7 @@ const DetailItem = ({ icon: Icon, label, value }: { icon: any; label: string; va
   </div>
 );
 
-const TraceItem = ({ icon: Icon, label, value }: { icon: any; label: string; value: string }) => (
+const TraceItem = ({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) => (
   <div className="flex items-center gap-2.5 rounded-lg bg-surface-2 px-3 py-2">
     <Icon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
     <span className="text-xs text-muted-foreground">{label}:</span>

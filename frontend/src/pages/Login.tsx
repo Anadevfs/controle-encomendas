@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { Lock, Mail, LogIn } from "lucide-react";
 import { motion } from "framer-motion";
 
+const employeeUsers = ["janaina@eva.com", "veronica@eva.com", "ana@eva.com", "vitor@eva.com"];
+
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -12,20 +14,18 @@ const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    setTimeout(() => {
-      const result = login(email, password);
-      if (result.success) {
-        navigate("/");
-      } else {
-        setError(result.error || "Erro ao entrar");
-      }
-      setLoading(false);
-    }, 600);
+    const result = await login(email, password);
+    if (result.success) {
+      navigate("/");
+    } else {
+      setError(result.error || "Erro ao entrar");
+    }
+    setLoading(false);
   };
 
   return (
@@ -37,7 +37,6 @@ const Login = () => {
         className="w-full max-w-md"
       >
         <div className="eva-card-elevated rounded-3xl p-8">
-          {/* Logo / Title */}
           <div className="text-center mb-8">
             <div className="mx-auto h-14 w-14 rounded-2xl bg-primary flex items-center justify-center mb-4">
               <span className="font-heading text-2xl font-bold text-primary-foreground">E</span>
@@ -46,20 +45,19 @@ const Login = () => {
               EVA Escritórios Virtuais
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Acesso interno — Controle de Encomendas
+              Acesso interno - Controle de Encomendas
             </p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5 block">
-                Email
+                Email ou usuário
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
-                  type="email"
+                  type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu@email.com"
@@ -118,25 +116,26 @@ const Login = () => {
             </button>
           </div>
 
-          {/* Footer note */}
           <div className="mt-6 pt-5 border-t border-border text-center">
             <p className="text-[11px] text-muted-foreground/70">
               Acesso exclusivo para funcionários EVA
             </p>
           </div>
 
-          {/* Demo hint */}
           <div className="mt-4 rounded-xl bg-surface-2 border border-border p-3">
-            <p className="text-[11px] text-muted-foreground text-center mb-2 font-medium">Demo — use um email abaixo:</p>
+            <p className="text-[11px] text-muted-foreground text-center mb-2 font-medium">Funcionários cadastrados:</p>
             <div className="grid grid-cols-2 gap-1.5">
-              {["ana@eva.com", "joao@eva.com", "maria@eva.com", "carlos@eva.com"].map((e) => (
+              {employeeUsers.map((employeeUser) => (
                 <button
-                  key={e}
+                  key={employeeUser}
                   type="button"
-                  onClick={() => { setEmail(e); setPassword("demo"); }}
+                  onClick={() => {
+                    setEmail(employeeUser);
+                    setPassword("1958");
+                  }}
                   className="text-[11px] text-primary hover:bg-eva-red-light rounded-lg py-1.5 px-2 transition-colors font-medium"
                 >
-                  {e}
+                  {employeeUser}
                 </button>
               ))}
             </div>

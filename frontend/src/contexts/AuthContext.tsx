@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 
+import { apiPost } from "@/lib/api";
+
 export interface Employee {
   id: number;
   name: string;
@@ -8,35 +10,98 @@ export interface Employee {
   initials: string;
 }
 
-const employees: Employee[] = [
-  { id: 1, name: "Ana Paula", email: "ana@eva.com", role: "Atendente", initials: "AP" },
-  { id: 2, name: "João Souza", email: "joao@eva.com", role: "Atendente", initials: "JS" },
-  { id: 3, name: "Maria Lima", email: "maria@eva.com", role: "Supervisora", initials: "ML" },
-  { id: 4, name: "Carlos Neto", email: "carlos@eva.com", role: "Atendente", initials: "CN" },
-];
+interface AuthApiUser {
+  id: number;
+  username: string;
+  nome: string;
+}
+
+const roleByUsername: Record<string, string> = {
+  admin: "Administrador",
+  "janaina@eva.com": "Atendente",
+  "veronica@eva.com": "Atendente",
+  "ana@eva.com": "Atendente",
+  "vitor@eva.com": "Atendente",
+};
+
+const getInitials = (name: string) =>
+  name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
 
 interface AuthContextType {
   user: Employee | null;
-  login: (email: string, password: string) => { success: boolean; error?: string };
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
+const AUTH_STORAGE_KEY = "eva.auth.user";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<Employee | null>(null);
+  const [user, setUser] = useState<Employee | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
 
-  const login = (email: string, _password: string) => {
-    const found = employees.find(
-      (e) => e.email.toLowerCase() === email.toLowerCase()
-    );
-    if (!found) return { success: false, error: "Usuário não encontrado" };
-    setUser(found);
-    return { success: true };
+    const storedUser = window.localStorage.getItem(AUTH_STORAGE_KEY);
+
+    if (!storedUser) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(storedUser) as Employee;
+    } catch {
+      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+      return null;
+    }
+  });
+
+  const login = async (email: string, password: string) => {
+    try {
+      const authUser = await apiPost<AuthApiUser, { username: string; senha: string }>(
+        "/auth/login",
+        {
+          username: email.trim(),
+          senha: password,
+        },
+      );
+
+      const normalizedUsername = authUser.username.toLowerCase();
+      setUser({
+        id: authUser.id,
+        name: authUser.nome,
+        email: authUser.username,
+        role: roleByUsername[normalizedUsername] ?? "Atendente",
+        initials: getInitials(authUser.nome),
+      });
+      window.localStorage.setItem(
+        AUTH_STORAGE_KEY,
+        JSON.stringify({
+          id: authUser.id,
+          name: authUser.nome,
+          email: authUser.username,
+          role: roleByUsername[normalizedUsername] ?? "Atendente",
+          initials: getInitials(authUser.nome),
+        }),
+      );
+      return { success: true };
+    } catch (_error) {
+      return { success: false, error: "Usuário ou senha inválidos" };
+    }
   };
 
-  const logout = () => setUser(null);
+  const logout = () => {
+    setUser(null);
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    }
+  };
 
   return (
     <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>

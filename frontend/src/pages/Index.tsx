@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Package as PackageIcon, Clock, Send, AlertTriangle } from "lucide-react";
 
 import DashboardHeader from "@/components/DashboardHeader";
@@ -10,6 +10,7 @@ import RecentEvents from "@/components/RecentEvents";
 import { packages, Package } from "@/data/mockData";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
+import { apiGet, apiPatch } from "@/lib/api";
 import type { Cliente } from "@/types/cliente";
 
 const metrics = [
@@ -19,8 +20,67 @@ const metrics = [
   { title: "Atrasadas", value: 2, icon: AlertTriangle, accentBg: "bg-eva-danger-light", accentText: "text-eva-danger", accentIcon: "text-eva-danger" },
 ];
 
+interface ApiEncomenda {
+  id: number;
+  descricao: string;
+  status: string;
+  dataRecebimento: string;
+  urlFoto: string | null;
+  cliente: {
+    id: number;
+    clientName: string;
+    companyName: string;
+    mailboxNumber: string;
+    whatsapp: string | null;
+  };
+}
+
+const formatPackageTime = (value: string) => {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "--:--";
+  }
+
+  return date.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const mapApiStatusToPackageStatus = (status: string): Package["status"] => {
+  const normalizedStatus = status.toLowerCase();
+
+  if (normalizedStatus === "entregue") {
+    return "enviado";
+  }
+
+  if (normalizedStatus === "pendente") {
+    return "pendente";
+  }
+
+  return "atrasado";
+};
+
+const mapEncomendaToPackage = (encomenda: ApiEncomenda): Package => ({
+  id: encomenda.id,
+  backendId: encomenda.id,
+  origin: "api",
+  cliente: encomenda.cliente.clientName,
+  sala: encomenda.cliente.mailboxNumber || "-",
+  empresa: encomenda.cliente.companyName || "Empresa nao informada",
+  horario: formatPackageTime(encomenda.dataRecebimento),
+  status: mapApiStatusToPackageStatus(encomenda.status),
+  funcionario: "Sistema",
+  descricao: encomenda.descricao || "Encomenda cadastrada na API.",
+  recebidoPor: "Sistema",
+  whatsapp: encomenda.cliente.whatsapp || "",
+  textoAuxiliar: `Dados restaurados da API para a encomenda ${encomenda.id}.`,
+});
+
 const buildPackageFromClient = (cliente: Cliente, employeeName: string): Package => ({
   id: cliente.id + 100000,
+  origin: "local",
   cliente: cliente.clientName,
   sala: cliente.mailboxNumber || "-",
   empresa: cliente.companyName || "Empresa nao informada",
@@ -40,6 +100,36 @@ const Index = () => {
   const [packageList, setPackageList] = useState<Package[]>(packages);
   const [selectedClient, setSelectedClient] = useState<Cliente | null>(null);
   const [selected, setSelected] = useState<Package | null>(packages[0]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPackages = async () => {
+      try {
+        const apiPackages = await apiGet<ApiEncomenda[]>("/encomendas");
+        if (!isMounted) {
+          return;
+        }
+
+        const mappedPackages = apiPackages.map(mapEncomendaToPackage);
+        setPackageList(mappedPackages);
+        setSelected(mappedPackages[0] ?? null);
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+
+        setPackageList(packages);
+        setSelected((currentSelected) => currentSelected ?? packages[0] ?? null);
+      }
+    };
+
+    void loadPackages();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleSelectPackage = (pkg: Package) => {
     setSelected(pkg);
@@ -92,7 +182,35 @@ const Index = () => {
     });
   };
 
-  const handleMarkAsSent = (pkg: Package) => {
+  const handleMarkAsSent = async (pkg: Package) => {
+    if (pkg.origin === "api" && pkg.backendId) {
+      try {
+        const updatedFromApi = mapEncomendaToPackage(
+          await apiPatch<ApiEncomenda>(`/encomendas/${pkg.backendId}/entregar`)
+        );
+
+        setPackageList((currentPackages) =>
+          currentPackages.map((currentPackage) =>
+            currentPackage.id === updatedFromApi.id ? updatedFromApi : currentPackage
+          )
+        );
+        setSelected(updatedFromApi);
+
+        toast({
+          title: "Encomenda atualizada",
+          description: `${updatedFromApi.cliente} foi marcada como enviada e persistida na API.`,
+        });
+        return;
+      } catch {
+        toast({
+          title: "Erro ao atualizar",
+          description: "Nao foi possivel persistir a entrega desta encomenda na API.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     const updatedPackage: Package = {
       ...pkg,
       status: "enviado",
