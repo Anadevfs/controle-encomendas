@@ -10,7 +10,7 @@ import RecentEvents from "@/components/RecentEvents";
 import { packages, Package } from "@/data/mockData";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
-import { apiGet, apiPatch } from "@/lib/api";
+import { apiGet, apiPatch, apiPostForm } from "@/lib/api";
 import type { Cliente } from "@/types/cliente";
 
 const metrics = [
@@ -26,6 +26,8 @@ interface ApiEncomenda {
   status: string;
   dataRecebimento: string;
   urlFoto: string | null;
+  recebidoPor: string | null;
+  marcadoEnviadoPor: string | null;
   cliente: {
     id: number;
     clientName: string;
@@ -65,34 +67,30 @@ const mapApiStatusToPackageStatus = (status: string): Package["status"] => {
 const mapEncomendaToPackage = (encomenda: ApiEncomenda): Package => ({
   id: encomenda.id,
   backendId: encomenda.id,
+  clientId: encomenda.cliente.id,
   origin: "api",
   cliente: encomenda.cliente.clientName,
   sala: encomenda.cliente.mailboxNumber || "-",
   empresa: encomenda.cliente.companyName || "Empresa nao informada",
   horario: formatPackageTime(encomenda.dataRecebimento),
   status: mapApiStatusToPackageStatus(encomenda.status),
-  funcionario: "Sistema",
+  funcionario: encomenda.marcadoEnviadoPor || encomenda.recebidoPor || "Nao informado",
   descricao: encomenda.descricao || "Encomenda cadastrada na API.",
-  recebidoPor: "Sistema",
+  recebidoPor: encomenda.recebidoPor || "Nao informado",
   whatsapp: encomenda.cliente.whatsapp || "",
+  marcadoEnviadoPor: encomenda.marcadoEnviadoPor || undefined,
   textoAuxiliar: `Dados restaurados da API para a encomenda ${encomenda.id}.`,
 });
 
-const buildPackageFromClient = (cliente: Cliente, employeeName: string): Package => ({
-  id: cliente.id + 100000,
-  origin: "local",
-  cliente: cliente.clientName,
-  sala: cliente.mailboxNumber || "-",
-  empresa: cliente.companyName || "Empresa nao informada",
-  horario: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-  status: "pendente",
-  funcionario: employeeName,
-  descricao: "Cliente selecionado via busca real. Encomenda pronta para acompanhamento local no front.",
-  recebidoPor: employeeName,
-  whatsapp: cliente.whatsapp || "",
-  codigoRastreio: "",
-  textoAuxiliar: "A selecao acima preenche automaticamente estes detalhes e a rastreabilidade da encomenda.",
-});
+const sortPackages = (items: Package[]) =>
+  [...items].sort((left, right) => {
+    const rightKey = right.backendId ?? right.id;
+    const leftKey = left.backendId ?? left.id;
+    return rightKey - leftKey;
+  });
+
+const buildPersistedDescription = (cliente: Cliente) =>
+  `Encomenda cadastrada para ${cliente.clientName} - ${cliente.companyName || "Empresa nao informada"}.`;
 
 const Index = () => {
   const { user } = useAuth();
@@ -111,7 +109,7 @@ const Index = () => {
           return;
         }
 
-        const mappedPackages = apiPackages.map(mapEncomendaToPackage);
+        const mappedPackages = sortPackages(apiPackages.map(mapEncomendaToPackage));
         setPackageList(mappedPackages);
         setSelected(mappedPackages[0] ?? null);
       } catch {
@@ -135,70 +133,91 @@ const Index = () => {
     setSelected(pkg);
   };
 
-  const handleSelectClient = (cliente: Cliente) => {
-    const nextPackage = buildPackageFromClient(cliente, employeeName);
-
+  const handleSelectClient = async (cliente: Cliente) => {
     setSelectedClient(cliente);
-    setPackageList((currentPackages) => {
-      const existingPackage = currentPackages.find((pkg) => pkg.id === nextPackage.id);
 
-      if (!existingPackage) {
-        return [nextPackage, ...currentPackages];
-      }
+    const latestPersistedPackage = packageList.find(
+      (pkg) => pkg.origin === "api" && pkg.clientId === cliente.id
+    );
 
-      return currentPackages.map((pkg) =>
-        pkg.id === nextPackage.id
-          ? {
-              ...pkg,
-              ...nextPackage,
-              status: pkg.status,
-              fotoEnviadaPor: pkg.fotoEnviadaPor,
-              marcadoEnviadoPor: pkg.marcadoEnviadoPor,
-              textoAuxiliar:
-                pkg.status === "enviado"
-                  ? `Encomenda marcada como enviada por ${pkg.marcadoEnviadoPor || employeeName}.`
-                  : nextPackage.textoAuxiliar,
-            }
-          : pkg
-      );
-    });
+    if (latestPersistedPackage) {
+      setSelected({
+        ...latestPersistedPackage,
+        textoAuxiliar:
+          latestPersistedPackage.status === "enviado"
+            ? latestPersistedPackage.textoAuxiliar ||
+              "Encomenda persistida na API e ja marcada como enviada."
+            : "Encomenda persistida na API e pronta para acompanhamento.",
+      });
+      return;
+    }
 
-    setSelected((currentSelected) => {
-      if (currentSelected?.id === nextPackage.id) {
-        return {
-          ...currentSelected,
-          ...nextPackage,
-          status: currentSelected.status,
-          fotoEnviadaPor: currentSelected.fotoEnviadaPor,
-          marcadoEnviadoPor: currentSelected.marcadoEnviadoPor,
-          textoAuxiliar:
-            currentSelected.status === "enviado"
-              ? `Encomenda marcada como enviada por ${currentSelected.marcadoEnviadoPor || employeeName}.`
-              : nextPackage.textoAuxiliar,
-        };
-      }
+    const formData = new FormData();
+    formData.append("clienteId", String(cliente.id));
+    formData.append("descricao", buildPersistedDescription(cliente));
+    formData.append("recebidoPor", employeeName);
+    formData.append(
+      "arquivo",
+      new Blob(
+        [`Cadastro inicial da encomenda para ${cliente.clientName} em ${new Date().toISOString()}.`],
+        { type: "text/plain" }
+      ),
+      "cadastro-inicial.txt"
+    );
 
-      return nextPackage;
-    });
+    try {
+      const persistedPackage = mapEncomendaToPackage(await apiPostForm<ApiEncomenda>("/encomendas", formData));
+      const enrichedPackage: Package = {
+        ...persistedPackage,
+        funcionario: employeeName,
+        recebidoPor: employeeName,
+        textoAuxiliar: "Encomenda salva na API e pronta para acompanhamento.",
+      };
+
+      setPackageList((currentPackages) => sortPackages([enrichedPackage, ...currentPackages]));
+      setSelected(enrichedPackage);
+
+      toast({
+        title: "Encomenda cadastrada",
+        description: `${cliente.clientName} foi persistido(a) na API com sucesso.`,
+      });
+    } catch {
+      toast({
+        title: "Erro ao cadastrar",
+        description: "Nao foi possivel salvar a encomenda na API. Nenhum registro local temporario foi mantido.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleMarkAsSent = async (pkg: Package) => {
     if (pkg.origin === "api" && pkg.backendId) {
       try {
         const updatedFromApi = mapEncomendaToPackage(
-          await apiPatch<ApiEncomenda>(`/encomendas/${pkg.backendId}/entregar`)
+          await apiPatch<ApiEncomenda>(
+            `/encomendas/${pkg.backendId}/entregar?marcadoEnviadoPor=${encodeURIComponent(employeeName)}`
+          )
         );
+        const enrichedUpdatedPackage: Package = {
+          ...updatedFromApi,
+          funcionario: pkg.funcionario || employeeName,
+          recebidoPor: pkg.recebidoPor || employeeName,
+          whatsapp: pkg.whatsapp || updatedFromApi.whatsapp,
+          codigoRastreio: pkg.codigoRastreio,
+          marcadoEnviadoPor: employeeName,
+          textoAuxiliar: `Encomenda marcada como enviada por ${employeeName} e persistida na API.`,
+        };
 
         setPackageList((currentPackages) =>
           currentPackages.map((currentPackage) =>
-            currentPackage.id === updatedFromApi.id ? updatedFromApi : currentPackage
+            currentPackage.id === enrichedUpdatedPackage.id ? enrichedUpdatedPackage : currentPackage
           )
         );
-        setSelected(updatedFromApi);
+        setSelected(enrichedUpdatedPackage);
 
         toast({
           title: "Encomenda atualizada",
-          description: `${updatedFromApi.cliente} foi marcada como enviada e persistida na API.`,
+          description: `${enrichedUpdatedPackage.cliente} foi marcada como enviada e persistida na API.`,
         });
         return;
       } catch {

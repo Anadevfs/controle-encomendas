@@ -18,6 +18,8 @@ public class Encomenda {
     private String status;
     private LocalDateTime dataRecebimento;
     private String urlFoto;
+    private String recebidoPor;
+    private String marcadoEnviadoPor;
 
     @Transient
     private String linkWhatsapp;
@@ -40,6 +42,10 @@ public class Encomenda {
     public void setDataRecebimento(LocalDateTime dataRecebimento) { this.dataRecebimento = dataRecebimento; }
     public String getUrlFoto() { return urlFoto; }
     public void setUrlFoto(String urlFoto) { this.urlFoto = urlFoto; }
+    public String getRecebidoPor() { return recebidoPor; }
+    public void setRecebidoPor(String recebidoPor) { this.recebidoPor = recebidoPor; }
+    public String getMarcadoEnviadoPor() { return marcadoEnviadoPor; }
+    public void setMarcadoEnviadoPor(String marcadoEnviadoPor) { this.marcadoEnviadoPor = marcadoEnviadoPor; }
     public String getLinkWhatsapp() { return linkWhatsapp; }
     public void setLinkWhatsapp(String linkWhatsapp) { this.linkWhatsapp = linkWhatsapp; }
 }

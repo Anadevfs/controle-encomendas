@@ -1,6 +1,7 @@
 export interface Package {
   id: number;
   backendId?: number;
+  clientId?: number;
   origin?: "api" | "local";
   cliente: string;
   sala: string;

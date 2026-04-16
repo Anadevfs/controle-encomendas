@@ -49,7 +49,8 @@ public class EncomendaController {
     public Encomenda salvarEncomenda(
             @RequestParam("clienteId") Long clienteId,
             @RequestParam("descricao") String descricao,
-            @RequestParam("arquivo") MultipartFile arquivo) throws IOException {
+            @RequestParam("arquivo") MultipartFile arquivo,
+            @RequestParam(value = "recebidoPor", required = false) String recebidoPor) throws IOException {
 
         Cliente cliente = clienteRepository.findById(clienteId)
                 .orElseThrow(() -> new RuntimeException("Cliente não encontrado"));
@@ -68,6 +69,8 @@ public class EncomendaController {
         encomenda.setDescricao(descricao);
         encomenda.setUrlFoto("/uploads/" + nomeArquivo);
         encomenda.setStatus("Pendente");
+        encomenda.setRecebidoPor(recebidoPor);
+        encomenda.setMarcadoEnviadoPor(null);
 
         Encomenda salva = encomendaRepository.save(encomenda);
 
@@ -109,10 +112,15 @@ public class EncomendaController {
     }
 
     @PatchMapping("/{id}/entregar")
-    public Encomenda entregar(@PathVariable Long id) {
+    public Encomenda entregar(
+            @PathVariable Long id,
+            @RequestParam(value = "marcadoEnviadoPor", required = false) String marcadoEnviadoPor) {
         Encomenda encomenda = encomendaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Encomenda não encontrada"));
         encomenda.setStatus("Entregue");
+        if (marcadoEnviadoPor != null && !marcadoEnviadoPor.isBlank()) {
+            encomenda.setMarcadoEnviadoPor(marcadoEnviadoPor);
+        }
 
         // REGISTRA NO LOG: Entrega
         atividadeRepository.save(new Atividade("Encomenda entregue - " + encomenda.getCliente().getCompanyName(), "SUCESSO"));
