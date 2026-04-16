@@ -1,4 +1,5 @@
 const API_PATH_PREFIX = "/api";
+const DEFAULT_API_BASE_URL = "http://localhost:8080";
 
 const getApiBaseCandidates = () => {
   const configuredBase = import.meta.env.VITE_API_BASE_URL?.trim();
@@ -7,20 +8,7 @@ const getApiBaseCandidates = () => {
     return [configuredBase.replace(/\/$/, "")];
   }
 
-  if (typeof window === "undefined") {
-    return ["http://localhost:8080", "http://localhost:8081"];
-  }
-
-  const { protocol, hostname, port } = window.location;
-  const sameOrigin = `${protocol}//${hostname}${port ? `:${port}` : ""}`;
-  const fallbackPort = port === "8080" ? "8081" : "8080";
-  const fallbackOrigin = `${protocol}//${hostname}:${fallbackPort}`;
-
-  if (port === "8080") {
-    return [fallbackOrigin, sameOrigin];
-  }
-
-  return [sameOrigin, fallbackOrigin];
+  return [DEFAULT_API_BASE_URL];
 };
 
 export async function apiGet<T>(path: string): Promise<T> {
