@@ -21,6 +21,9 @@ public class Encomenda {
     private String recebidoPor;
     private String marcadoEnviadoPor;
 
+    // maquininha de Bip
+    private String codigoRastreio;
+
     @Transient
     private String linkWhatsapp;
 
@@ -48,4 +51,6 @@ public class Encomenda {
     public void setMarcadoEnviadoPor(String marcadoEnviadoPor) { this.marcadoEnviadoPor = marcadoEnviadoPor; }
     public String getLinkWhatsapp() { return linkWhatsapp; }
     public void setLinkWhatsapp(String linkWhatsapp) { this.linkWhatsapp = linkWhatsapp; }
+    public String getCodigoRastreio() { return codigoRastreio; }
+    public void setCodigoRastreio(String codigoRastreio) { this.codigoRastreio = codigoRastreio; }
 }

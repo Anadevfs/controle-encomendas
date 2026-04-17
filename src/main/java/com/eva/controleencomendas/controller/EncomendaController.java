@@ -9,11 +9,13 @@ import com.eva.controleencomendas.repository.AtividadeRepository;
 import com.eva.controleencomendas.service.WhatsAppService;
 import com.eva.controleencomendas.dto.DashboardDTO;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -126,5 +128,36 @@ public class EncomendaController {
         atividadeRepository.save(new Atividade("Encomenda entregue - " + encomenda.getCliente().getCompanyName(), "SUCESSO"));
 
         return encomendaRepository.save(encomenda);
+    }
+
+    // Busca e histórico 100%
+    @GetMapping("/buscar")
+    public List<Encomenda> buscarEncomendas(
+            @RequestParam(value = "termo", required = false) String termo,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "funcionario", required = false) String funcionario,
+            @RequestParam(value = "dataInicial", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate dataInicial,
+            @RequestParam(value = "dataFinal", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate dataFinal) {
+
+        // Converte as datas (Exemplo: dataInicial começa 00:00:00 e dataFinal vai até 23:59:59)
+        LocalDateTime inicio = (dataInicial != null) ? dataInicial.atStartOfDay() : null;
+        LocalDateTime fim = (dataFinal != null) ? dataFinal.atTime(23, 59, 59) : null;
+
+        return encomendaRepository.buscarHistorico(termo, status, funcionario, inicio, fim);
+    }
+
+    // Rota para deletar uma encomenda pelo ID
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletarEncomenda(@PathVariable Long id) {
+        if (!encomendaRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        encomendaRepository.deleteById(id);
+
+        // Registra no log que algo foi deletado (maior segurança)
+        atividadeRepository.save(new Atividade("Uma encomenda foi excluída do sistema (ID: " + id + ")", "AVISO"));
+
+        return ResponseEntity.noContent().build();
     }
 }
