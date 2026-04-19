@@ -9,7 +9,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(originPatterns = "http://localhost:*")
 public class AuthController {
 
     @Autowired

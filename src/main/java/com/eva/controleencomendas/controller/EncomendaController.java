@@ -21,7 +21,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/encomendas")
-@CrossOrigin(originPatterns = "http://localhost:*")
 public class EncomendaController {
 
     @Autowired

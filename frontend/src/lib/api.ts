@@ -1,14 +1,22 @@
 const API_PATH_PREFIX = "/api";
-const DEFAULT_API_BASE_URL = "http://localhost:8080";
 
 const getApiBaseCandidates = () => {
-  const configuredBase = import.meta.env.VITE_API_BASE_URL?.trim();
+  const configuredBase =
+    import.meta.env.VITE_API_URL?.trim() || import.meta.env.VITE_API_BASE_URL?.trim();
 
   if (configuredBase) {
     return [configuredBase.replace(/\/$/, "")];
   }
 
-  return [DEFAULT_API_BASE_URL];
+  if (import.meta.env.DEV) {
+    return ["http://localhost:8080"];
+  }
+
+  if (typeof window !== "undefined") {
+    return [window.location.origin];
+  }
+
+  return [""];
 };
 
 const normalizeApiPath = (path: string) =>
