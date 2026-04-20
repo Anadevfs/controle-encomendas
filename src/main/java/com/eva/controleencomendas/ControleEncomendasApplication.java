@@ -13,11 +13,13 @@ import org.springframework.context.annotation.Bean;
 
 import java.io.InputStream;
 import java.util.List;
+import java.util.TimeZone;
 
 @SpringBootApplication
 public class ControleEncomendasApplication {
 
 	public static void main(String[] args) {
+		TimeZone.setDefault(TimeZone.getTimeZone("America/Sao_Paulo"));
 		SpringApplication.run(ControleEncomendasApplication.class, args);
 	}
 
