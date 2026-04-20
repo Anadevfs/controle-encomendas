@@ -70,6 +70,7 @@ const mapEncomendaToPackage = (encomenda: ApiEncomenda): Package => ({
   backendId: encomenda.id,
   clientId: encomenda.cliente.id,
   origin: "api",
+  dataRecebimento: encomenda.dataRecebimento,
   cliente: encomenda.cliente.clientName,
   sala: encomenda.cliente.mailboxNumber || "-",
   empresa: encomenda.cliente.companyName || "Empresa nao informada",

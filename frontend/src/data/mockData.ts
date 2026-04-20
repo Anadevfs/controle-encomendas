@@ -3,6 +3,7 @@ export interface Package {
   backendId?: number;
   clientId?: number;
   origin?: "api" | "local";
+  dataRecebimento?: string;
   cliente: string;
   sala: string;
   empresa: string;
