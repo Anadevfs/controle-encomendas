@@ -3,8 +3,8 @@ import { motion } from "framer-motion";
 import { Trash2 } from "lucide-react";
 
 const statusConfig = {
-  enviado: { label: "Enviado", dotClass: "bg-eva-green", textClass: "text-eva-green", bgClass: "bg-eva-green-light" },
-  pendente: { label: "Pendente", dotClass: "bg-eva-warning", textClass: "text-eva-warning", bgClass: "bg-eva-warning-light" },
+  enviado: { label: "Entregue", dotClass: "bg-eva-green", textClass: "text-eva-green", bgClass: "bg-eva-green-light" },
+  pendente: { label: "Comunicado", dotClass: "bg-eva-warning", textClass: "text-eva-warning", bgClass: "bg-eva-warning-light" },
   atrasado: { label: "Atrasado", dotClass: "bg-eva-danger", textClass: "text-eva-danger", bgClass: "bg-eva-danger-light" },
 };
 

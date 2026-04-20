@@ -15,8 +15,8 @@ import type { Cliente } from "@/types/cliente";
 
 const metrics = [
   { title: "Encomendas hoje", value: 8, icon: PackageIcon, accentBg: "bg-eva-red-light", accentText: "text-primary", accentIcon: "text-primary" },
-  { title: "Pendentes de envio", value: 3, icon: Clock, accentBg: "bg-eva-warning-light", accentText: "text-eva-warning", accentIcon: "text-eva-warning" },
-  { title: "Enviadas", value: 3, icon: Send, accentBg: "bg-eva-green-light", accentText: "text-eva-green", accentIcon: "text-eva-green" },
+  { title: "Comunicadas", value: 3, icon: Clock, accentBg: "bg-eva-warning-light", accentText: "text-eva-warning", accentIcon: "text-eva-warning" },
+  { title: "Entregues", value: 3, icon: Send, accentBg: "bg-eva-green-light", accentText: "text-eva-green", accentIcon: "text-eva-green" },
   { title: "Atrasadas", value: 2, icon: AlertTriangle, accentBg: "bg-eva-danger-light", accentText: "text-eva-danger", accentIcon: "text-eva-danger" },
 ];
 
@@ -38,6 +38,12 @@ interface ApiEncomenda {
 }
 
 const formatPackageTime = (value: string) => {
+  const directTimeMatch = value.match(/T(\d{2}:\d{2})/);
+
+  if (directTimeMatch) {
+    return directTimeMatch[1];
+  }
+
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
@@ -136,29 +142,6 @@ const Index = () => {
 
   const handleSelectClient = async (cliente: Cliente) => {
     setSelectedClient(cliente);
-
-    const latestPersistedPackage = packageList.find(
-      (pkg) => pkg.origin === "api" && pkg.clientId === cliente.id
-    );
-
-    if (latestPersistedPackage) {
-      setPackageList((currentPackages) =>
-        currentPackages.map((currentPackage) =>
-          currentPackage.id === latestPersistedPackage.id
-            ? {
-                ...currentPackage,
-                textoAuxiliar:
-                  latestPersistedPackage.status === "enviado"
-                    ? latestPersistedPackage.textoAuxiliar ||
-                      "Encomenda persistida na API e ja marcada como enviada."
-                    : "Encomenda persistida na API e pronta para acompanhamento.",
-              }
-            : currentPackage
-        )
-      );
-      setSelectedPackageId(latestPersistedPackage.id);
-      return;
-    }
 
     const formData = new FormData();
     formData.append("clienteId", String(cliente.id));

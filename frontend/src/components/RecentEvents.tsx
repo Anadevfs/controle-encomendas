@@ -5,6 +5,12 @@ import { Archive, CheckCircle2, AlertTriangle, Info, Search } from "lucide-react
 import { Input } from "@/components/ui/input";
 import type { Package } from "@/data/mockData";
 
+const statusLabelMap = {
+  enviado: "Entregue",
+  pendente: "Comunicado",
+  atrasado: "Atrasado",
+} as const;
+
 const typeConfig = {
   success: { icon: CheckCircle2, colorClass: "text-eva-green", dotClass: "bg-eva-green" },
   info: { icon: Info, colorClass: "text-primary", dotClass: "bg-primary" },
@@ -90,7 +96,7 @@ const RecentEvents = ({ packages }: RecentEventsProps) => {
                   {pkg.cliente} · Caixa Postal {pkg.sala} · {pkg.empresa || "Empresa nao informada"}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
-                  Funcionario: {pkg.funcionario || "Nao informado"} · Status: {pkg.status}
+                  Funcionario: {pkg.funcionario || "Nao informado"} · Status: {statusLabelMap[pkg.status]}
                 </p>
               </div>
               <span className="font-heading text-xs tabular-nums text-muted-foreground">{pkg.horario}</span>

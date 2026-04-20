@@ -7,8 +7,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Textarea } from "@/components/ui/textarea";
 
 const statusConfig = {
-  enviado: { label: "Enviado", bgClass: "bg-eva-green-light", textClass: "text-eva-green", borderClass: "border-eva-green/30" },
-  pendente: { label: "Pendente", bgClass: "bg-eva-warning-light", textClass: "text-eva-warning", borderClass: "border-eva-warning/30" },
+  enviado: { label: "Entregue", bgClass: "bg-eva-green-light", textClass: "text-eva-green", borderClass: "border-eva-green/30" },
+  pendente: { label: "Comunicado", bgClass: "bg-eva-warning-light", textClass: "text-eva-warning", borderClass: "border-eva-warning/30" },
   atrasado: { label: "Atrasado", bgClass: "bg-eva-danger-light", textClass: "text-eva-danger", borderClass: "border-eva-danger/30" },
 };
 
@@ -151,7 +151,7 @@ const PackageDetail = ({ pkg, onMarkAsSent, onObservationChange }: PackageDetail
               }`}
             >
               <CheckCircle2 className="h-4 w-4" />
-              {pkg.status === "enviado" ? "Encomenda enviada" : "Marcar como enviada"}
+              {pkg.status === "enviado" ? "Encomenda entregue" : "Marcar como entregue"}
             </button>
 
             <button
