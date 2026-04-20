@@ -12,6 +12,7 @@ export interface Package {
   descricao: string;
   recebidoPor: string;
   whatsapp?: string;
+  observacoes?: string;
   codigoRastreio?: string;
   textoAuxiliar?: string;
   fotoEnviadaPor?: string;

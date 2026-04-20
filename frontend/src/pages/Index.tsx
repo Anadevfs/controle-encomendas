@@ -97,7 +97,8 @@ const Index = () => {
   const employeeName = user?.name ?? "Atendente";
   const [packageList, setPackageList] = useState<Package[]>(packages);
   const [selectedClient, setSelectedClient] = useState<Cliente | null>(null);
-  const [selected, setSelected] = useState<Package | null>(packages[0]);
+  const [selectedPackageId, setSelectedPackageId] = useState<number | null>(packages[0]?.id ?? null);
+  const selectedPackage = packageList.find((pkg) => pkg.id === selectedPackageId) ?? null;
 
   useEffect(() => {
     let isMounted = true;
@@ -111,14 +112,14 @@ const Index = () => {
 
         const mappedPackages = sortPackages(apiPackages.map(mapEncomendaToPackage));
         setPackageList(mappedPackages);
-        setSelected(mappedPackages[0] ?? null);
+        setSelectedPackageId(mappedPackages[0]?.id ?? null);
       } catch {
         if (!isMounted) {
           return;
         }
 
         setPackageList(packages);
-        setSelected((currentSelected) => currentSelected ?? packages[0] ?? null);
+        setSelectedPackageId((currentSelectedId) => currentSelectedId ?? packages[0]?.id ?? null);
       }
     };
 
@@ -130,7 +131,7 @@ const Index = () => {
   }, []);
 
   const handleSelectPackage = (pkg: Package) => {
-    setSelected(pkg);
+    setSelectedPackageId(pkg.id);
   };
 
   const handleSelectClient = async (cliente: Cliente) => {
@@ -141,14 +142,21 @@ const Index = () => {
     );
 
     if (latestPersistedPackage) {
-      setSelected({
-        ...latestPersistedPackage,
-        textoAuxiliar:
-          latestPersistedPackage.status === "enviado"
-            ? latestPersistedPackage.textoAuxiliar ||
-              "Encomenda persistida na API e ja marcada como enviada."
-            : "Encomenda persistida na API e pronta para acompanhamento.",
-      });
+      setPackageList((currentPackages) =>
+        currentPackages.map((currentPackage) =>
+          currentPackage.id === latestPersistedPackage.id
+            ? {
+                ...currentPackage,
+                textoAuxiliar:
+                  latestPersistedPackage.status === "enviado"
+                    ? latestPersistedPackage.textoAuxiliar ||
+                      "Encomenda persistida na API e ja marcada como enviada."
+                    : "Encomenda persistida na API e pronta para acompanhamento.",
+              }
+            : currentPackage
+        )
+      );
+      setSelectedPackageId(latestPersistedPackage.id);
       return;
     }
 
@@ -175,7 +183,7 @@ const Index = () => {
       };
 
       setPackageList((currentPackages) => sortPackages([enrichedPackage, ...currentPackages]));
-      setSelected(enrichedPackage);
+      setSelectedPackageId(enrichedPackage.id);
 
       toast({
         title: "Encomenda cadastrada",
@@ -200,9 +208,10 @@ const Index = () => {
         );
         const enrichedUpdatedPackage: Package = {
           ...updatedFromApi,
-          funcionario: pkg.funcionario || employeeName,
-          recebidoPor: pkg.recebidoPor || employeeName,
+          funcionario: employeeName,
+          recebidoPor: pkg.recebidoPor || updatedFromApi.recebidoPor || employeeName,
           whatsapp: pkg.whatsapp || updatedFromApi.whatsapp,
+          observacoes: pkg.observacoes,
           codigoRastreio: pkg.codigoRastreio,
           marcadoEnviadoPor: employeeName,
           textoAuxiliar: `Encomenda marcada como enviada por ${employeeName} e persistida na API.`,
@@ -213,7 +222,7 @@ const Index = () => {
             currentPackage.id === enrichedUpdatedPackage.id ? enrichedUpdatedPackage : currentPackage
           )
         );
-        setSelected(enrichedUpdatedPackage);
+        setSelectedPackageId(enrichedUpdatedPackage.id);
 
         toast({
           title: "Encomenda atualizada",
@@ -233,6 +242,7 @@ const Index = () => {
     const updatedPackage: Package = {
       ...pkg,
       status: "enviado",
+      funcionario: employeeName,
       marcadoEnviadoPor: employeeName,
       textoAuxiliar: `Encomenda marcada como enviada por ${employeeName}.`,
     };
@@ -242,7 +252,7 @@ const Index = () => {
         currentPackage.id === updatedPackage.id ? updatedPackage : currentPackage
       )
     );
-    setSelected(updatedPackage);
+    setSelectedPackageId(updatedPackage.id);
 
     toast({
       title: "Encomenda atualizada",
@@ -250,11 +260,10 @@ const Index = () => {
     });
   };
 
-  const handleSaveTrackingCode = (pkg: Package, codigoRastreio: string) => {
+  const handleObservationChange = (pkg: Package, observacoes: string) => {
     const updatedPackage: Package = {
       ...pkg,
-      codigoRastreio,
-      textoAuxiliar: `Codigo de rastreio ${codigoRastreio} registrado e pronto para integracao com o backend.`,
+      observacoes,
     };
 
     setPackageList((currentPackages) =>
@@ -262,12 +271,6 @@ const Index = () => {
         currentPackage.id === updatedPackage.id ? updatedPackage : currentPackage
       )
     );
-    setSelected(updatedPackage);
-
-    toast({
-      title: "Codigo capturado",
-      description: `Leitura registrada para ${updatedPackage.cliente}.`,
-    });
   };
 
   const handleDeletePackage = (pkg: Package) => {
@@ -281,12 +284,12 @@ const Index = () => {
       setPackageList((currentPackages) => {
         const nextPackages = currentPackages.filter((currentPackage) => currentPackage.id !== pkg.id);
 
-        setSelected((currentSelected) => {
-          if (currentSelected?.id !== pkg.id) {
-            return currentSelected;
+        setSelectedPackageId((currentSelectedId) => {
+          if (currentSelectedId !== pkg.id) {
+            return currentSelectedId;
           }
 
-          return nextPackages[0] ?? null;
+          return nextPackages[0]?.id ?? null;
         });
 
         return nextPackages;
@@ -338,7 +341,7 @@ const Index = () => {
           <div className="lg:col-span-2 flex flex-col gap-4">
             <PackageTable
               packages={packageList}
-              selectedId={selected?.id ?? null}
+              selectedId={selectedPackageId}
               onSelect={handleSelectPackage}
               onDelete={handleDeletePackage}
             />
@@ -347,9 +350,9 @@ const Index = () => {
           <div className="flex flex-col gap-4">
             <ClientSearchCard selectedClient={selectedClient} onSelectClient={handleSelectClient} />
             <PackageDetail
-              pkg={selected}
+              pkg={selectedPackage}
               onMarkAsSent={handleMarkAsSent}
-              onSaveTrackingCode={handleSaveTrackingCode}
+              onObservationChange={handleObservationChange}
             />
           </div>
         </div>

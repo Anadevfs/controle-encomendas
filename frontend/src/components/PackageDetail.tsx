@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Package } from "@/data/mockData";
-import { Camera, CheckCircle2, RefreshCw, User, Building2, Clock, Info, UserCheck, ImageIcon, Send, Phone, ScanLine, type LucideIcon } from "lucide-react";
+import { Camera, CheckCircle2, RefreshCw, User, Building2, Clock, Info, UserCheck, ImageIcon, Send, Phone, ClipboardList, type LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 const statusConfig = {
   enviado: { label: "Enviado", bgClass: "bg-eva-green-light", textClass: "text-eva-green", borderClass: "border-eva-green/30" },
@@ -15,21 +15,19 @@ const statusConfig = {
 interface PackageDetailProps {
   pkg: Package | null;
   onMarkAsSent: (pkg: Package) => void;
-  onSaveTrackingCode: (pkg: Package, codigoRastreio: string) => void;
+  onObservationChange: (pkg: Package, observacoes: string) => void;
 }
 
-const PackageDetail = ({ pkg, onMarkAsSent, onSaveTrackingCode }: PackageDetailProps) => {
-  const [trackingInput, setTrackingInput] = useState("");
-  const scannerInputRef = useRef<HTMLInputElement | null>(null);
+const PackageDetail = ({ pkg, onMarkAsSent, onObservationChange }: PackageDetailProps) => {
+  const [observationInput, setObservationInput] = useState("");
 
   useEffect(() => {
     if (!pkg) {
-      setTrackingInput("");
+      setObservationInput("");
       return;
     }
 
-    setTrackingInput(pkg.codigoRastreio ?? "");
-    scannerInputRef.current?.focus();
+    setObservationInput(pkg.observacoes ?? "");
   }, [pkg]);
 
   if (!pkg) {
@@ -44,26 +42,6 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveTrackingCode }: PackageDetailP
   }
 
   const cfg = statusConfig[pkg.status];
-  const codigoRastreioSalvo = pkg.codigoRastreio?.trim() ?? "";
-
-  const handleTrackingSubmit = () => {
-    const normalizedCode = trackingInput.trim();
-
-    if (!normalizedCode) {
-      scannerInputRef.current?.focus();
-      return;
-    }
-
-    if (normalizedCode === codigoRastreioSalvo) {
-      setTrackingInput("");
-      scannerInputRef.current?.focus();
-      return;
-    }
-
-    onSaveTrackingCode(pkg, normalizedCode);
-    setTrackingInput("");
-    scannerInputRef.current?.focus();
-  };
 
   return (
     <AnimatePresence mode="wait">
@@ -108,43 +86,30 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveTrackingCode }: PackageDetailP
         )}
 
         <div className="border-t border-border pt-4">
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <p className="font-heading text-xs uppercase tracking-[0.2em] text-muted-foreground">
-              Codigo de Rastreio
-            </p>
-            <button
-              type="button"
-              onClick={() => scannerInputRef.current?.focus()}
-              className="inline-flex items-center gap-2 rounded-lg bg-surface-2 px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-3"
-            >
-              <ScanLine className="h-3.5 w-3.5" />
-              Escanear codigo
-            </button>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <Input
-              ref={scannerInputRef}
-              type="text"
-              value={trackingInput}
-              autoFocus
-              placeholder="Aproxime o leitor ou digite o codigo"
-              className="h-11 rounded-xl border-border bg-surface-2"
-              onChange={(event) => setTrackingInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  handleTrackingSubmit();
-                }
-              }}
-            />
-
-            <div className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-muted-foreground">
-              {codigoRastreioSalvo
-                ? `Codigo salvo: ${codigoRastreioSalvo}`
-                : "Nenhum codigo registrado para esta encomenda."}
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="rounded-lg bg-surface-2 p-2">
+              <ClipboardList className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="font-heading text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                Observacoes da Encomenda
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Registre o volume ou uma observacao operacional antes do envio.
+              </p>
             </div>
           </div>
+
+          <Textarea
+            value={observationInput}
+            placeholder="Ex.: 2 caixas, 1 envelope, documentos, pasta com documentos"
+            className="min-h-[96px] resize-none rounded-xl border-border bg-surface-2"
+            onChange={(event) => {
+              const nextObservation = event.target.value;
+              setObservationInput(nextObservation);
+              onObservationChange(pkg, nextObservation);
+            }}
+          />
         </div>
 
         <div className="border-t border-border pt-4">
@@ -153,6 +118,9 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveTrackingCode }: PackageDetailP
           </p>
           <div className="space-y-2">
             <TraceItem icon={UserCheck} label="Recebida por" value={pkg.recebidoPor} />
+            {pkg.observacoes?.trim() && (
+              <TraceItem icon={ClipboardList} label="Observacoes" value={pkg.observacoes.trim()} />
+            )}
             {pkg.fotoEnviadaPor && (
               <TraceItem icon={ImageIcon} label="Foto enviada por" value={pkg.fotoEnviadaPor} />
             )}
