@@ -4,6 +4,7 @@ import { Package } from "@/data/mockData";
 import { Camera, CheckCircle2, RefreshCw, User, Building2, Clock, Info, UserCheck, ImageIcon, Send, Phone, ClipboardList, type LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 const statusConfig = {
@@ -15,10 +16,10 @@ const statusConfig = {
 interface PackageDetailProps {
   pkg: Package | null;
   onMarkAsSent: (pkg: Package) => void;
-  onObservationChange: (pkg: Package, observacoes: string) => void;
+  onSaveObservation: (pkg: Package, observacoes: string) => void;
 }
 
-const PackageDetail = ({ pkg, onMarkAsSent, onObservationChange }: PackageDetailProps) => {
+const PackageDetail = ({ pkg, onMarkAsSent, onSaveObservation }: PackageDetailProps) => {
   const [observationInput, setObservationInput] = useState("");
 
   useEffect(() => {
@@ -42,6 +43,9 @@ const PackageDetail = ({ pkg, onMarkAsSent, onObservationChange }: PackageDetail
   }
 
   const cfg = statusConfig[pkg.status];
+  const hasObservationContent = observationInput.trim().length > 0;
+  const hasObservationChanged = observationInput !== (pkg.observacoes ?? "");
+  const canSaveObservation = hasObservationContent && hasObservationChanged;
 
   return (
     <AnimatePresence mode="wait">
@@ -105,11 +109,21 @@ const PackageDetail = ({ pkg, onMarkAsSent, onObservationChange }: PackageDetail
             placeholder="Ex.: 2 caixas, 1 envelope, documentos, pasta com documentos"
             className="min-h-[96px] resize-none rounded-xl border-border bg-surface-2"
             onChange={(event) => {
-              const nextObservation = event.target.value;
-              setObservationInput(nextObservation);
-              onObservationChange(pkg, nextObservation);
+              setObservationInput(event.target.value);
             }}
           />
+
+          <div className="mt-3 flex justify-end">
+            <Button
+              type="button"
+              size="sm"
+              disabled={!canSaveObservation}
+              onClick={() => onSaveObservation(pkg, observationInput)}
+              className="h-8 rounded-lg px-3 text-xs font-medium"
+            >
+              Salvar observacao
+            </Button>
+          </div>
         </div>
 
         <div className="border-t border-border pt-4">

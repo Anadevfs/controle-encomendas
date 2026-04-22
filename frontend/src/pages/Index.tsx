@@ -294,7 +294,7 @@ const Index = () => {
     });
   };
 
-  const handleObservationChange = (pkg: Package, observacoes: string) => {
+  const handleSaveObservation = (pkg: Package, observacoes: string) => {
     const updatedPackage: Package = {
       ...pkg,
       observacoes,
@@ -305,6 +305,12 @@ const Index = () => {
         currentPackage.id === updatedPackage.id ? updatedPackage : currentPackage
       )
     );
+    setSelectedPackageId(updatedPackage.id);
+
+    toast({
+      title: "Observacao salva",
+      description: "A observacao da encomenda foi atualizada com sucesso.",
+    });
   };
 
   const handleDeletePackage = (pkg: Package) => {
@@ -386,7 +392,7 @@ const Index = () => {
             <PackageDetail
               pkg={selectedPackage}
               onMarkAsSent={handleMarkAsSent}
-              onObservationChange={handleObservationChange}
+              onSaveObservation={handleSaveObservation}
             />
           </div>
         </div>
