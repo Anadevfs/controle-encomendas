@@ -20,6 +20,7 @@ interface ApiEncomenda {
   descricao: string;
   status: string;
   dataRecebimento: string;
+  dataEntrega: string | null;
   urlFoto: string | null;
   recebidoPor: string | null;
   marcadoEnviadoPor: string | null;
@@ -71,6 +72,7 @@ const mapEncomendaToPackage = (encomenda: ApiEncomenda): Package => ({
   clientId: encomenda.cliente.id,
   origin: "api",
   dataRecebimento: encomenda.dataRecebimento,
+  dataEntrega: encomenda.dataEntrega || undefined,
   cliente: encomenda.cliente.clientName,
   sala: encomenda.cliente.mailboxNumber || "-",
   empresa: encomenda.cliente.companyName || "Empresa nao informada",

@@ -4,6 +4,7 @@ export interface Package {
   clientId?: number;
   origin?: "api" | "local";
   dataRecebimento?: string;
+  dataEntrega?: string;
   cliente: string;
   sala: string;
   empresa: string;

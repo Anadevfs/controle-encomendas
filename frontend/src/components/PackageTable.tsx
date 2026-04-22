@@ -20,13 +20,24 @@ interface PackageTableProps {
 }
 
 const formatDisplayedTime = (pkg: Package) => {
-  const directTimeMatch = pkg.dataRecebimento?.match(/T(\d{2}:\d{2})/);
+  const formatTimeValue = (value: string | undefined) => {
+    const directTimeMatch = value?.match(/T(\d{2}:\d{2})/);
 
-  if (directTimeMatch) {
-    return directTimeMatch[1];
+    if (directTimeMatch) {
+      return directTimeMatch[1];
+    }
+
+    return "";
+  };
+
+  const receivedTime = formatTimeValue(pkg.dataRecebimento) || pkg.horario;
+  const deliveredTime = formatTimeValue(pkg.dataEntrega);
+
+  if (!deliveredTime) {
+    return receivedTime;
   }
 
-  return pkg.horario;
+  return `${receivedTime} / ${deliveredTime}`;
 };
 
 const normalizeText = (value: string | undefined) =>
