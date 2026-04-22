@@ -1,6 +1,10 @@
+import { useMemo, useState } from "react";
+
 import { Package } from "@/data/mockData";
 import { motion } from "framer-motion";
-import { Trash2 } from "lucide-react";
+import { Search, Trash2 } from "lucide-react";
+
+import { Input } from "@/components/ui/input";
 
 const statusConfig = {
   enviado: { label: "Entregue", dotClass: "bg-eva-green", textClass: "text-eva-green", bgClass: "bg-eva-green-light" },
@@ -25,7 +29,30 @@ const formatDisplayedTime = (pkg: Package) => {
   return pkg.horario;
 };
 
+const normalizeText = (value: string | undefined) =>
+  (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
 const PackageTable = ({ packages, selectedId, onSelect, onDelete }: PackageTableProps) => {
+  const [query, setQuery] = useState("");
+  const filteredPackages = useMemo(() => {
+    const normalizedQuery = normalizeText(query.trim());
+
+    if (!normalizedQuery) {
+      return packages;
+    }
+
+    return packages.filter((pkg) => {
+      const statusLabel = statusConfig[pkg.status].label;
+
+      return [pkg.cliente, pkg.empresa, statusLabel].some((value) =>
+        normalizeText(value).includes(normalizedQuery)
+      );
+    });
+  }, [packages, query]);
+
   return (
     <div className="eva-card-elevated rounded-2xl overflow-hidden">
       <div className="px-5 py-4 border-b border-border flex items-center gap-3">
@@ -33,6 +60,17 @@ const PackageTable = ({ packages, selectedId, onSelect, onDelete }: PackageTable
         <h2 className="font-heading text-lg font-semibold tracking-wide text-foreground">
           Encomendas Recebidas Hoje
         </h2>
+      </div>
+      <div className="px-5 py-4 border-b border-border bg-background/60">
+        <div className="relative max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Buscar por cliente, empresa ou status"
+            className="h-10 rounded-xl border-border bg-surface-2 pl-10"
+          />
+        </div>
       </div>
       <div className="overflow-auto max-h-[420px]">
         <table className="w-full text-sm">
@@ -47,7 +85,14 @@ const PackageTable = ({ packages, selectedId, onSelect, onDelete }: PackageTable
             </tr>
           </thead>
           <tbody>
-            {packages.map((pkg, i) => {
+            {filteredPackages.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-5 py-8 text-center text-sm text-muted-foreground">
+                  Nenhuma encomenda encontrada para essa busca.
+                </td>
+              </tr>
+            )}
+            {filteredPackages.map((pkg, i) => {
               const cfg = statusConfig[pkg.status];
               const isSelected = selectedId === pkg.id;
 
