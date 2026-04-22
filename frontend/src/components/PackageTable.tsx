@@ -47,7 +47,7 @@ const PackageTable = ({ packages, selectedId, onSelect, onDelete }: PackageTable
     return packages.filter((pkg) => {
       const statusLabel = statusConfig[pkg.status].label;
 
-      return [pkg.cliente, pkg.empresa, statusLabel].some((value) =>
+      return [pkg.cliente, pkg.empresa, pkg.sala, statusLabel].some((value) =>
         normalizeText(value).includes(normalizedQuery)
       );
     });
