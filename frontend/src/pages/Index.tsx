@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Package as PackageIcon, Clock, Send, AlertTriangle } from "lucide-react";
 
 import DashboardHeader from "@/components/DashboardHeader";
@@ -13,12 +13,7 @@ import { toast } from "@/components/ui/use-toast";
 import { apiDelete, apiGet, apiPatch, apiPostForm } from "@/lib/api";
 import type { Cliente } from "@/types/cliente";
 
-const metrics = [
-  { title: "Encomendas hoje", value: 8, icon: PackageIcon, accentBg: "bg-eva-red-light", accentText: "text-primary", accentIcon: "text-primary" },
-  { title: "Comunicadas", value: 3, icon: Clock, accentBg: "bg-eva-warning-light", accentText: "text-eva-warning", accentIcon: "text-eva-warning" },
-  { title: "Entregues", value: 3, icon: Send, accentBg: "bg-eva-green-light", accentText: "text-eva-green", accentIcon: "text-eva-green" },
-  { title: "Atrasadas", value: 2, icon: AlertTriangle, accentBg: "bg-eva-danger-light", accentText: "text-eva-danger", accentIcon: "text-eva-danger" },
-];
+const POLLING_INTERVAL_MS = 10000;
 
 interface ApiEncomenda {
   id: number;
@@ -95,6 +90,25 @@ const sortPackages = (items: Package[]) =>
     return rightKey - leftKey;
   });
 
+const mergeFrontendFields = (currentPackages: Package[], nextPackages: Package[]) => {
+  const currentPackagesById = new Map(currentPackages.map((pkg) => [pkg.id, pkg]));
+
+  return nextPackages.map((pkg) => {
+    const currentPackage = currentPackagesById.get(pkg.id);
+
+    if (!currentPackage) {
+      return pkg;
+    }
+
+    return {
+      ...pkg,
+      observacoes: currentPackage.observacoes,
+      codigoRastreio: currentPackage.codigoRastreio,
+      textoAuxiliar: currentPackage.textoAuxiliar,
+    };
+  });
+};
+
 const buildPersistedDescription = (cliente: Cliente) =>
   `Encomenda cadastrada para ${cliente.clientName} - ${cliente.companyName || "Empresa nao informada"}.`;
 
@@ -105,9 +119,33 @@ const Index = () => {
   const [selectedClient, setSelectedClient] = useState<Cliente | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState<number | null>(packages[0]?.id ?? null);
   const selectedPackage = packageList.find((pkg) => pkg.id === selectedPackageId) ?? null;
+  const metrics = useMemo(() => {
+    const today = new Date().toLocaleDateString("pt-BR");
+    const packagesToday = packageList.filter((pkg) => {
+      if (!pkg.dataRecebimento) {
+        return true;
+      }
+
+      const receivedDate = new Date(pkg.dataRecebimento);
+
+      if (Number.isNaN(receivedDate.getTime())) {
+        return true;
+      }
+
+      return receivedDate.toLocaleDateString("pt-BR") === today;
+    });
+
+    return [
+      { title: "Encomendas hoje", value: packagesToday.length, icon: PackageIcon, accentBg: "bg-eva-red-light", accentText: "text-primary", accentIcon: "text-primary" },
+      { title: "Comunicadas", value: packageList.filter((pkg) => pkg.status === "pendente").length, icon: Clock, accentBg: "bg-eva-warning-light", accentText: "text-eva-warning", accentIcon: "text-eva-warning" },
+      { title: "Entregues", value: packageList.filter((pkg) => pkg.status === "enviado").length, icon: Send, accentBg: "bg-eva-green-light", accentText: "text-eva-green", accentIcon: "text-eva-green" },
+      { title: "Atrasadas", value: packageList.filter((pkg) => pkg.status === "atrasado").length, icon: AlertTriangle, accentBg: "bg-eva-danger-light", accentText: "text-eva-danger", accentIcon: "text-eva-danger" },
+    ];
+  }, [packageList]);
 
   useEffect(() => {
     let isMounted = true;
+    let pollingId: ReturnType<typeof setInterval> | null = null;
 
     const loadPackages = async () => {
       try {
@@ -117,22 +155,34 @@ const Index = () => {
         }
 
         const mappedPackages = sortPackages(apiPackages.map(mapEncomendaToPackage));
-        setPackageList(mappedPackages);
-        setSelectedPackageId(mappedPackages[0]?.id ?? null);
+        setPackageList((currentPackages) => mergeFrontendFields(currentPackages, mappedPackages));
+        setSelectedPackageId((currentSelectedId) => {
+          if (currentSelectedId && mappedPackages.some((pkg) => pkg.id === currentSelectedId)) {
+            return currentSelectedId;
+          }
+
+          return mappedPackages[0]?.id ?? null;
+        });
       } catch {
         if (!isMounted) {
           return;
         }
 
-        setPackageList(packages);
+        setPackageList((currentPackages) => currentPackages);
         setSelectedPackageId((currentSelectedId) => currentSelectedId ?? packages[0]?.id ?? null);
       }
     };
 
     void loadPackages();
+    pollingId = setInterval(() => {
+      void loadPackages();
+    }, POLLING_INTERVAL_MS);
 
     return () => {
       isMounted = false;
+      if (pollingId) {
+        clearInterval(pollingId);
+      }
     };
   }, []);
 
