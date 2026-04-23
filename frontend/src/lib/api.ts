@@ -121,7 +121,7 @@ export async function apiPostForm<TResponse>(path: string, body: FormData): Prom
   throw lastError ?? new Error("API request failed");
 }
 
-export async function apiPatch<TResponse>(path: string): Promise<TResponse> {
+export async function apiPatch<TResponse, TBody = undefined>(path: string, body?: TBody): Promise<TResponse> {
   const normalizedPath = normalizeApiPath(path);
   const candidates = getApiBaseCandidates();
 
@@ -133,7 +133,9 @@ export async function apiPatch<TResponse>(path: string): Promise<TResponse> {
         method: "PATCH",
         headers: {
           Accept: "application/json",
+          ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
         },
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
       });
 
       if (!response.ok) {

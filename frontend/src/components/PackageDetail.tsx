@@ -16,8 +16,8 @@ const statusConfig = {
 
 interface PackageDetailProps {
   pkg: Package | null;
-  onMarkAsSent: (pkg: Package) => void;
-  onSaveObservation: (pkg: Package, observacoes: string) => void;
+  onMarkAsSent: (pkg: Package) => void | Promise<void>;
+  onSaveObservation: (pkg: Package, observacoes: string) => void | Promise<void>;
 }
 
 const PackageDetail = ({ pkg, onMarkAsSent, onSaveObservation }: PackageDetailProps) => {

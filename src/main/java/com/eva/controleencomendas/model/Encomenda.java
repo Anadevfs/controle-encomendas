@@ -21,6 +21,7 @@ public class Encomenda {
     private String urlFoto;
     private String recebidoPor;
     private String marcadoEnviadoPor;
+    private String observacao;
 
     // maquininha de Bip
     private String codigoRastreio;
@@ -52,6 +53,8 @@ public class Encomenda {
     public void setRecebidoPor(String recebidoPor) { this.recebidoPor = recebidoPor; }
     public String getMarcadoEnviadoPor() { return marcadoEnviadoPor; }
     public void setMarcadoEnviadoPor(String marcadoEnviadoPor) { this.marcadoEnviadoPor = marcadoEnviadoPor; }
+    public String getObservacao() { return observacao; }
+    public void setObservacao(String observacao) { this.observacao = observacao; }
     public String getLinkWhatsapp() { return linkWhatsapp; }
     public void setLinkWhatsapp(String linkWhatsapp) { this.linkWhatsapp = linkWhatsapp; }
     public String getCodigoRastreio() { return codigoRastreio; }

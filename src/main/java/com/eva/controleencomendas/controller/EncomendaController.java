@@ -75,6 +75,7 @@ public class EncomendaController {
         encomenda.setStatus("Pendente");
         encomenda.setRecebidoPor(recebidoPor);
         encomenda.setMarcadoEnviadoPor(null);
+        encomenda.setObservacao(null);
 
         Encomenda salva = encomendaRepository.save(encomenda);
 
@@ -130,6 +131,17 @@ public class EncomendaController {
 
         // REGISTRA NO LOG: Entrega
         atividadeRepository.save(new Atividade("Encomenda entregue - " + encomenda.getCliente().getCompanyName(), "SUCESSO"));
+
+        return encomendaRepository.save(encomenda);
+    }
+
+    @PatchMapping("/{id}/observacao")
+    public Encomenda atualizarObservacao(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        Encomenda encomenda = encomendaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Encomenda não encontrada"));
+
+        String observacao = body.get("observacao");
+        encomenda.setObservacao(observacao != null ? observacao.trim() : null);
 
         return encomendaRepository.save(encomenda);
     }

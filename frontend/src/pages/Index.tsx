@@ -18,6 +18,7 @@ const POLLING_INTERVAL_MS = 10000;
 interface ApiEncomenda {
   id: number;
   descricao: string;
+  observacao: string | null;
   status: string;
   dataRecebimento: string;
   dataEntrega: string | null;
@@ -80,6 +81,7 @@ const mapEncomendaToPackage = (encomenda: ApiEncomenda): Package => ({
   status: mapApiStatusToPackageStatus(encomenda.status),
   funcionario: encomenda.marcadoEnviadoPor || encomenda.recebidoPor || "Nao informado",
   descricao: encomenda.descricao || "Encomenda cadastrada na API.",
+  observacoes: encomenda.observacao || undefined,
   recebidoPor: encomenda.recebidoPor || "Nao informado",
   whatsapp: encomenda.cliente.whatsapp || "",
   marcadoEnviadoPor: encomenda.marcadoEnviadoPor || undefined,
@@ -105,7 +107,7 @@ const mergeFrontendFields = (currentPackages: Package[], nextPackages: Package[]
 
     return {
       ...pkg,
-      observacoes: currentPackage.observacoes,
+      observacoes: pkg.observacoes ?? currentPackage.observacoes,
       codigoRastreio: currentPackage.codigoRastreio,
       textoAuxiliar: currentPackage.textoAuxiliar,
     };
@@ -247,7 +249,7 @@ const Index = () => {
           funcionario: employeeName,
           recebidoPor: pkg.recebidoPor || updatedFromApi.recebidoPor || employeeName,
           whatsapp: pkg.whatsapp || updatedFromApi.whatsapp,
-          observacoes: pkg.observacoes,
+          observacoes: updatedFromApi.observacoes ?? pkg.observacoes,
           codigoRastreio: pkg.codigoRastreio,
           marcadoEnviadoPor: employeeName,
           textoAuxiliar: `Encomenda marcada como enviada por ${employeeName} e persistida na API.`,
@@ -296,7 +298,47 @@ const Index = () => {
     });
   };
 
-  const handleSaveObservation = (pkg: Package, observacoes: string) => {
+  const handleSaveObservation = async (pkg: Package, observacoes: string) => {
+    if (pkg.origin === "api" && pkg.backendId) {
+      try {
+        const updatedFromApi = mapEncomendaToPackage(
+          await apiPatch<ApiEncomenda, { observacao: string }>(`/encomendas/${pkg.backendId}/observacao`, {
+            observacao: observacoes,
+          })
+        );
+        const enrichedUpdatedPackage: Package = {
+          ...updatedFromApi,
+          funcionario: pkg.funcionario,
+          recebidoPor: pkg.recebidoPor || updatedFromApi.recebidoPor,
+          whatsapp: pkg.whatsapp || updatedFromApi.whatsapp,
+          codigoRastreio: pkg.codigoRastreio,
+          fotoEnviadaPor: pkg.fotoEnviadaPor,
+          marcadoEnviadoPor: pkg.marcadoEnviadoPor || updatedFromApi.marcadoEnviadoPor,
+          textoAuxiliar: pkg.textoAuxiliar,
+        };
+
+        setPackageList((currentPackages) =>
+          currentPackages.map((currentPackage) =>
+            currentPackage.id === enrichedUpdatedPackage.id ? enrichedUpdatedPackage : currentPackage
+          )
+        );
+        setSelectedPackageId(enrichedUpdatedPackage.id);
+
+        toast({
+          title: "Observacao salva",
+          description: "A observacao da encomenda foi persistida com sucesso.",
+        });
+        return;
+      } catch {
+        toast({
+          title: "Erro ao salvar observacao",
+          description: "Nao foi possivel persistir a observacao desta encomenda na API.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     const updatedPackage: Package = {
       ...pkg,
       observacoes,
