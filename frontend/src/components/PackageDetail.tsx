@@ -30,7 +30,7 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveObservation }: PackageDetailPr
     }
 
     setObservationInput(pkg.observacoes ?? "");
-  }, [pkg]);
+  }, [pkg?.id, pkg?.observacoes]);
 
   if (!pkg) {
     return (
