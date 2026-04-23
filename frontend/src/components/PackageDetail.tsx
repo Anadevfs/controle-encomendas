@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { formatPackageReceivedLabel } from "@/lib/package-datetime";
 
 const statusConfig = {
   enviado: { label: "Entregue", bgClass: "bg-eva-green-light", textClass: "text-eva-green", borderClass: "border-eva-green/30" },
@@ -67,7 +68,7 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveObservation }: PackageDetailPr
         <div className="grid grid-cols-2 gap-3">
           <DetailItem icon={Building2} label="Empresa" value={pkg.empresa} />
           <DetailItem icon={User} label="Caixa Postal" value={pkg.sala} />
-          <DetailItem icon={Clock} label="Recebido" value={pkg.horario} />
+          <DetailItem icon={Clock} label="Recebido" value={formatPackageReceivedLabel(pkg)} />
           <DetailItem icon={Phone} label="WhatsApp" value={pkg.whatsapp || "Nao informado"} />
           <div className="flex items-start gap-2.5">
             <div className="rounded-lg bg-eva-red-light p-1.5">

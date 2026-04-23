@@ -4,6 +4,7 @@ import { Archive, CheckCircle2, AlertTriangle, Info, Search } from "lucide-react
 
 import { Input } from "@/components/ui/input";
 import type { Package } from "@/data/mockData";
+import { formatPackageScheduleLabel } from "@/lib/package-datetime";
 
 const statusLabelMap = {
   enviado: "Entregue",
@@ -45,7 +46,7 @@ const RecentEvents = ({ packages }: RecentEventsProps) => {
         pkg.funcionario,
         pkg.recebidoPor,
         pkg.marcadoEnviadoPor,
-        pkg.horario,
+        formatPackageScheduleLabel(pkg),
       ].some((value) => normalizeText(value).includes(normalizedQuery))
     );
   }, [packages, query]);
@@ -99,7 +100,7 @@ const RecentEvents = ({ packages }: RecentEventsProps) => {
                   Funcionario: {pkg.funcionario || "Nao informado"} · Status: {statusLabelMap[pkg.status]}
                 </p>
               </div>
-              <span className="font-heading text-xs tabular-nums text-muted-foreground">{pkg.horario}</span>
+              <span className="font-heading text-xs tabular-nums text-muted-foreground">{formatPackageScheduleLabel(pkg)}</span>
             </motion.div>
           );
         })}

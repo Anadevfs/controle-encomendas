@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Search, Trash2 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
+import { formatPackageScheduleLabel } from "@/lib/package-datetime";
 
 const statusConfig = {
   enviado: { label: "Entregue", dotClass: "bg-eva-green", textClass: "text-eva-green", bgClass: "bg-eva-green-light" },
@@ -18,51 +19,6 @@ interface PackageTableProps {
   onSelect: (pkg: Package) => void;
   onDelete: (pkg: Package) => void;
 }
-
-const formatDisplayedTime = (pkg: Package) => {
-  const formatDateTimeValue = (value: string | undefined) => {
-    const directDateTimeMatch = value?.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})/);
-
-    if (directDateTimeMatch) {
-      const [, , month, day, time] = directDateTimeMatch;
-      return {
-        date: `${day}/${month}`,
-        time,
-      };
-    }
-
-    if (!value) {
-      return null;
-    }
-
-    const parsedDate = new Date(value);
-
-    if (Number.isNaN(parsedDate.getTime())) {
-      return null;
-    }
-
-    return {
-      date: parsedDate.toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-      }),
-      time: parsedDate.toLocaleTimeString("pt-BR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    };
-  };
-
-  const receivedDateTime = formatDateTimeValue(pkg.dataRecebimento);
-  const deliveredDateTime = formatDateTimeValue(pkg.dataEntrega);
-  const receivedLabel = receivedDateTime ? `${receivedDateTime.date} ${receivedDateTime.time}` : pkg.horario;
-
-  if (!deliveredDateTime) {
-    return receivedLabel;
-  }
-
-  return `${receivedLabel} / ${deliveredDateTime.time}`;
-};
 
 const normalizeText = (value: string | undefined) =>
   (value ?? "")
@@ -146,7 +102,7 @@ const PackageTable = ({ packages, selectedId, onSelect, onDelete }: PackageTable
                   <td className="px-5 py-3 text-muted-foreground">
                     Caixa Postal {pkg.sala} · {pkg.empresa}
                   </td>
-                  <td className="px-5 py-3 font-heading tabular-nums text-foreground">{formatDisplayedTime(pkg)}</td>
+                  <td className="px-5 py-3 font-heading tabular-nums text-foreground">{formatPackageScheduleLabel(pkg)}</td>
                   <td className="px-5 py-3">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${cfg.bgClass} ${cfg.textClass}`}>
                       <span className={`h-1.5 w-1.5 rounded-full ${cfg.dotClass}`} />
