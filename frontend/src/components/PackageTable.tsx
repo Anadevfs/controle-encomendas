@@ -20,24 +20,48 @@ interface PackageTableProps {
 }
 
 const formatDisplayedTime = (pkg: Package) => {
-  const formatTimeValue = (value: string | undefined) => {
-    const directTimeMatch = value?.match(/T(\d{2}:\d{2})/);
+  const formatDateTimeValue = (value: string | undefined) => {
+    const directDateTimeMatch = value?.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})/);
 
-    if (directTimeMatch) {
-      return directTimeMatch[1];
+    if (directDateTimeMatch) {
+      const [, , month, day, time] = directDateTimeMatch;
+      return {
+        date: `${day}/${month}`,
+        time,
+      };
     }
 
-    return "";
+    if (!value) {
+      return null;
+    }
+
+    const parsedDate = new Date(value);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return null;
+    }
+
+    return {
+      date: parsedDate.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+      }),
+      time: parsedDate.toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
   };
 
-  const receivedTime = formatTimeValue(pkg.dataRecebimento) || pkg.horario;
-  const deliveredTime = formatTimeValue(pkg.dataEntrega);
+  const receivedDateTime = formatDateTimeValue(pkg.dataRecebimento);
+  const deliveredDateTime = formatDateTimeValue(pkg.dataEntrega);
+  const receivedLabel = receivedDateTime ? `${receivedDateTime.date} ${receivedDateTime.time}` : pkg.horario;
 
-  if (!deliveredTime) {
-    return receivedTime;
+  if (!deliveredDateTime) {
+    return receivedLabel;
   }
 
-  return `${receivedTime} / ${deliveredTime}`;
+  return `${receivedLabel} / ${deliveredDateTime.time}`;
 };
 
 const normalizeText = (value: string | undefined) =>
