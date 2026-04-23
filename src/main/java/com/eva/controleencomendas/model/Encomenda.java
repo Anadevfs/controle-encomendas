@@ -17,6 +17,7 @@ public class Encomenda {
     private String descricao;
     private String status;
     private LocalDateTime dataRecebimento;
+    private LocalDateTime dataEntrega;
     private String urlFoto;
     private String recebidoPor;
     private String marcadoEnviadoPor;
@@ -43,6 +44,8 @@ public class Encomenda {
     public void setStatus(String status) { this.status = status; }
     public LocalDateTime getDataRecebimento() { return dataRecebimento; }
     public void setDataRecebimento(LocalDateTime dataRecebimento) { this.dataRecebimento = dataRecebimento; }
+    public LocalDateTime getDataEntrega() { return dataEntrega; }
+    public void setDataEntrega(LocalDateTime dataEntrega) { this.dataEntrega = dataEntrega; }
     public String getUrlFoto() { return urlFoto; }
     public void setUrlFoto(String urlFoto) { this.urlFoto = urlFoto; }
     public String getRecebidoPor() { return recebidoPor; }

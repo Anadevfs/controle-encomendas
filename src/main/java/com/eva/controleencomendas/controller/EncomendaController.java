@@ -23,6 +23,9 @@ import java.util.Map;
 @RequestMapping("/api/encomendas")
 public class EncomendaController {
 
+    private static final String STATUS_ENTREGUE = "Entregue";
+    private static final String STATUS_ENVIADO = "Enviado";
+
     @Autowired
     private EncomendaRepository encomendaRepository;
 
@@ -103,6 +106,7 @@ public class EncomendaController {
         String novoStatus = body.get("status");
         if (novoStatus != null) {
             encomenda.setStatus(novoStatus);
+            preencherDataEntregaSeNecessario(encomenda, novoStatus);
 
             // REGISTRA NO LOG: Mudança de status
             String mensagemLog = "Encomenda " + novoStatus.toLowerCase() + " - " + encomenda.getCliente().getCompanyName();
@@ -118,7 +122,8 @@ public class EncomendaController {
             @RequestParam(value = "marcadoEnviadoPor", required = false) String marcadoEnviadoPor) {
         Encomenda encomenda = encomendaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Encomenda não encontrada"));
-        encomenda.setStatus("Entregue");
+        encomenda.setStatus(STATUS_ENTREGUE);
+        preencherDataEntregaSeNecessario(encomenda, STATUS_ENTREGUE);
         if (marcadoEnviadoPor != null && !marcadoEnviadoPor.isBlank()) {
             encomenda.setMarcadoEnviadoPor(marcadoEnviadoPor);
         }
@@ -130,6 +135,16 @@ public class EncomendaController {
     }
 
     // Busca e histórico 100%
+    private void preencherDataEntregaSeNecessario(Encomenda encomenda, String status) {
+        if (status == null || encomenda.getDataEntrega() != null) {
+            return;
+        }
+
+        if (STATUS_ENTREGUE.equalsIgnoreCase(status) || STATUS_ENVIADO.equalsIgnoreCase(status)) {
+            encomenda.setDataEntrega(LocalDateTime.now());
+        }
+    }
+
     @GetMapping("/buscar")
     public List<Encomenda> buscarEncomendas(
             @RequestParam(value = "termo", required = false) String termo,
