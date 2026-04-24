@@ -123,6 +123,7 @@ const Index = () => {
   const [packageList, setPackageList] = useState<Package[]>(packages);
   const [selectedClient, setSelectedClient] = useState<Cliente | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState<number | null>(packages[0]?.id ?? null);
+  const [isRegisteringPackage, setIsRegisteringPackage] = useState(false);
   const selectedPackage = packageList.find((pkg) => pkg.id === selectedPackageId) ?? null;
   const metrics = useMemo(() => {
     const today = new Date().toLocaleDateString("pt-BR");
@@ -195,21 +196,29 @@ const Index = () => {
     setSelectedPackageId(pkg.id);
   };
 
-  const handleSelectClient = async (cliente: Cliente) => {
+  const handleSelectClient = (cliente: Cliente) => {
     setSelectedClient(cliente);
+  };
+
+  const handleRegisterPackage = async () => {
+    if (!selectedClient || isRegisteringPackage) {
+      return;
+    }
 
     const formData = new FormData();
-    formData.append("clienteId", String(cliente.id));
-    formData.append("descricao", buildPersistedDescription(cliente));
+    formData.append("clienteId", String(selectedClient.id));
+    formData.append("descricao", buildPersistedDescription(selectedClient));
     formData.append("recebidoPor", employeeName);
     formData.append(
       "arquivo",
       new Blob(
-        [`Cadastro inicial da encomenda para ${cliente.clientName} em ${new Date().toISOString()}.`],
+        [`Cadastro inicial da encomenda para ${selectedClient.clientName} em ${new Date().toISOString()}.`],
         { type: "text/plain" }
       ),
       "cadastro-inicial.txt"
     );
+
+    setIsRegisteringPackage(true);
 
     try {
       const persistedPackage = mapEncomendaToPackage(await apiPostForm<ApiEncomenda>("/encomendas", formData));
@@ -225,7 +234,7 @@ const Index = () => {
 
       toast({
         title: "Encomenda cadastrada",
-        description: `${cliente.clientName} foi persistido(a) na API com sucesso.`,
+        description: `${selectedClient.clientName} foi persistido(a) na API com sucesso.`,
       });
     } catch {
       toast({
@@ -233,6 +242,8 @@ const Index = () => {
         description: "Nao foi possivel salvar a encomenda na API. Nenhum registro local temporario foi mantido.",
         variant: "destructive",
       });
+    } finally {
+      setIsRegisteringPackage(false);
     }
   };
 
@@ -432,7 +443,12 @@ const Index = () => {
             <RecentEvents packages={packageList} />
           </div>
           <div className="flex flex-col gap-4">
-            <ClientSearchCard selectedClient={selectedClient} onSelectClient={handleSelectClient} />
+            <ClientSearchCard
+              selectedClient={selectedClient}
+              onSelectClient={handleSelectClient}
+              onRegisterPackage={handleRegisterPackage}
+              isRegisteringPackage={isRegisteringPackage}
+            />
             <PackageDetail
               pkg={selectedPackage}
               onMarkAsSent={handleMarkAsSent}

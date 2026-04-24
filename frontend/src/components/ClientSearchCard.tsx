@@ -1,7 +1,8 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, Loader2, MapPinned, Phone, Search, User2 } from "lucide-react";
+import { Building2, Loader2, MapPinned, PackagePlus, Phone, Search, User2 } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiGet } from "@/lib/api";
 import type { Cliente } from "@/types/cliente";
@@ -39,9 +40,16 @@ const fetchAllClients = async () => apiGet<Cliente[]>("/clientes");
 interface ClientSearchCardProps {
   selectedClient: Cliente | null;
   onSelectClient: (cliente: Cliente) => void;
+  onRegisterPackage: () => void;
+  isRegisteringPackage: boolean;
 }
 
-const ClientSearchCard = ({ selectedClient, onSelectClient }: ClientSearchCardProps) => {
+const ClientSearchCard = ({
+  selectedClient,
+  onSelectClient,
+  onRegisterPackage,
+  isRegisteringPackage,
+}: ClientSearchCardProps) => {
   const [query, setQuery] = useState("");
   const [isListOpen, setIsListOpen] = useState(false);
   const deferredQuery = useDeferredValue(query.trim());
@@ -79,25 +87,6 @@ const ClientSearchCard = ({ selectedClient, onSelectClient }: ClientSearchCardPr
   const hasApiError =
     !!allClientsQuery.error ||
     (deferredQuery.length >= MIN_SEARCH_LENGTH && !!searchQuery.error);
-
-  useEffect(() => {
-    if (!selectedClient) {
-      return;
-    }
-
-    const selectedStillExists = suggestions.some((cliente) => cliente.id === selectedClient.id);
-
-    if (!selectedStillExists && deferredQuery.length >= MIN_SEARCH_LENGTH) {
-      const matchedClient = dedupeClients([
-        ...(searchQuery.data ?? []),
-        ...(allClientsQuery.data ?? []),
-      ]).find((cliente) => cliente.id === selectedClient.id);
-
-      if (matchedClient) {
-        onSelectClient(matchedClient);
-      }
-    }
-  }, [allClientsQuery.data, deferredQuery.length, onSelectClient, searchQuery.data, selectedClient, suggestions]);
 
   useEffect(() => {
     if (!selectedClient) {
@@ -214,8 +203,22 @@ const ClientSearchCard = ({ selectedClient, onSelectClient }: ClientSearchCardPr
         />
       </div>
 
+      <Button
+        type="button"
+        className="h-11 w-full rounded-xl"
+        disabled={!selectedClient || isRegisteringPackage}
+        onClick={onRegisterPackage}
+      >
+        {isRegisteringPackage ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <PackagePlus className="h-4 w-4" />
+        )}
+        {isRegisteringPackage ? "Registrando encomenda" : "Registrar encomenda"}
+      </Button>
+
       <p className="text-xs text-muted-foreground border-t border-border pt-3">
-        As sugestoes acima usam dados reais do backend. O dashboard visual permanece intacto.
+        Buscar ou selecionar um cliente apenas preenche os dados. O registro acontece somente pelo botao acima.
       </p>
     </div>
   );
