@@ -32,7 +32,7 @@ public class ControleEncomendasApplication {
 				admin.setUsername("admin");
 				admin.setSenha("123");
 				usuarioRepo.save(admin);
-				System.out.println("USUARIO ADMIN CRIADO (user: admin / senha: 123)");
+				System.out.println("USUARIO ADMIN CRIADO");
 			}
 
 			if (clienteRepo.count() == 0) {

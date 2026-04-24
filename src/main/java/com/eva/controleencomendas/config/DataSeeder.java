@@ -26,6 +26,5 @@ public class DataSeeder implements CommandLineRunner {
         usuario.setSenha(senha);
         usuario.setNome(nome);
         usuarioRepository.save(usuario);
-        System.out.println("USUARIO DE ACESSO GARANTIDO: " + username);
     }
 }

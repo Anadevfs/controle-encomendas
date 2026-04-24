@@ -9,15 +9,19 @@ import com.eva.controleencomendas.repository.AtividadeRepository;
 import com.eva.controleencomendas.service.WhatsAppService;
 import com.eva.controleencomendas.dto.DashboardDTO;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/encomendas")
@@ -25,6 +29,15 @@ public class EncomendaController {
 
     private static final String STATUS_ENTREGUE = "Entregue";
     private static final String STATUS_ENVIADO = "Enviado";
+    private static final String STATUS_PENDENTE = "Pendente";
+    private static final long MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
+    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "application/pdf",
+            "text/plain"
+    );
 
     @Autowired
     private EncomendaRepository encomendaRepository;
@@ -56,11 +69,20 @@ public class EncomendaController {
             @RequestParam("arquivo") MultipartFile arquivo,
             @RequestParam(value = "recebidoPor", required = false) String recebidoPor) throws IOException {
 
-        Cliente cliente = clienteRepository.findById(clienteId)
-                .orElseThrow(() -> new RuntimeException("Cliente não encontrado"));
+        String descricaoValida = validarTextoObrigatorio(descricao, "descricao", 500);
+        String recebidoPorValido = normalizarTextoOpcional(recebidoPor, 120);
+        validarArquivo(arquivo);
 
-        String nomeArquivo = System.currentTimeMillis() + "_" + arquivo.getOriginalFilename();
-        Path caminho = Paths.get("./uploads/" + nomeArquivo);
+        Cliente cliente = clienteRepository.findById(clienteId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cliente nao encontrado"));
+
+        String nomeArquivo = criarNomeSeguro(arquivo.getOriginalFilename());
+        Path uploadsDir = Paths.get("./uploads").toAbsolutePath().normalize();
+        Path caminho = uploadsDir.resolve(nomeArquivo).normalize();
+
+        if (!caminho.startsWith(uploadsDir)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nome de arquivo invalido.");
+        }
 
         if (!Files.exists(caminho.getParent())) {
             Files.createDirectories(caminho.getParent());
@@ -70,10 +92,10 @@ public class EncomendaController {
 
         Encomenda encomenda = new Encomenda();
         encomenda.setCliente(cliente);
-        encomenda.setDescricao(descricao);
+        encomenda.setDescricao(descricaoValida);
         encomenda.setUrlFoto("/uploads/" + nomeArquivo);
-        encomenda.setStatus("Pendente");
-        encomenda.setRecebidoPor(recebidoPor);
+        encomenda.setStatus(STATUS_PENDENTE);
+        encomenda.setRecebidoPor(recebidoPorValido);
         encomenda.setMarcadoEnviadoPor(null);
         encomenda.setObservacao(null);
 
@@ -101,16 +123,21 @@ public class EncomendaController {
 
     @PatchMapping("/{id}/status")
     public Encomenda atualizarStatus(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        if (body == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Corpo da requisicao e obrigatorio.");
+        }
+
         Encomenda encomenda = encomendaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Encomenda não encontrada"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Encomenda nao encontrada"));
 
         String novoStatus = body.get("status");
         if (novoStatus != null) {
-            encomenda.setStatus(novoStatus);
-            preencherDataEntregaSeNecessario(encomenda, novoStatus);
+            String statusValido = validarStatus(novoStatus);
+            encomenda.setStatus(statusValido);
+            preencherDataEntregaSeNecessario(encomenda, statusValido);
 
             // REGISTRA NO LOG: Mudança de status
-            String mensagemLog = "Encomenda " + novoStatus.toLowerCase() + " - " + encomenda.getCliente().getCompanyName();
+            String mensagemLog = "Encomenda " + statusValido.toLowerCase() + " - " + encomenda.getCliente().getCompanyName();
             atividadeRepository.save(new Atividade(mensagemLog, "SUCESSO"));
         }
 
@@ -122,11 +149,12 @@ public class EncomendaController {
             @PathVariable Long id,
             @RequestParam(value = "marcadoEnviadoPor", required = false) String marcadoEnviadoPor) {
         Encomenda encomenda = encomendaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Encomenda não encontrada"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Encomenda nao encontrada"));
         encomenda.setStatus(STATUS_ENTREGUE);
         preencherDataEntregaSeNecessario(encomenda, STATUS_ENTREGUE);
-        if (marcadoEnviadoPor != null && !marcadoEnviadoPor.isBlank()) {
-            encomenda.setMarcadoEnviadoPor(marcadoEnviadoPor);
+        String marcadoEnviadoPorValido = normalizarTextoOpcional(marcadoEnviadoPor, 120);
+        if (marcadoEnviadoPorValido != null) {
+            encomenda.setMarcadoEnviadoPor(marcadoEnviadoPorValido);
         }
 
         // REGISTRA NO LOG: Entrega
@@ -137,11 +165,15 @@ public class EncomendaController {
 
     @PatchMapping("/{id}/observacao")
     public Encomenda atualizarObservacao(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        if (body == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Corpo da requisicao e obrigatorio.");
+        }
+
         Encomenda encomenda = encomendaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Encomenda não encontrada"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Encomenda nao encontrada"));
 
         String observacao = body.get("observacao");
-        encomenda.setObservacao(observacao != null ? observacao.trim() : null);
+        encomenda.setObservacao(normalizarTextoOpcional(observacao, 1000));
 
         return encomendaRepository.save(encomenda);
     }
@@ -169,7 +201,17 @@ public class EncomendaController {
         LocalDateTime inicio = (dataInicial != null) ? dataInicial.atStartOfDay() : null;
         LocalDateTime fim = (dataFinal != null) ? dataFinal.atTime(23, 59, 59) : null;
 
-        return encomendaRepository.buscarHistorico(termo, status, funcionario, inicio, fim);
+        if (inicio != null && fim != null && inicio.isAfter(fim)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "dataInicial nao pode ser maior que dataFinal.");
+        }
+
+        return encomendaRepository.buscarHistorico(
+                normalizarTextoOpcional(termo, 100),
+                normalizarTextoOpcional(status, 50),
+                normalizarTextoOpcional(funcionario, 120),
+                inicio,
+                fim
+        );
     }
 
     // Rota para deletar uma encomenda pelo ID
@@ -185,5 +227,69 @@ public class EncomendaController {
         atividadeRepository.save(new Atividade("Uma encomenda foi excluída do sistema (ID: " + id + ")", "AVISO"));
 
         return ResponseEntity.noContent().build();
+    }
+
+    private void validarArquivo(MultipartFile arquivo) {
+        if (arquivo == null || arquivo.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "arquivo e obrigatorio.");
+        }
+
+        if (arquivo.getSize() > MAX_UPLOAD_SIZE_BYTES) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "arquivo deve ter ate 5MB.");
+        }
+
+        String contentType = arquivo.getContentType();
+        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "tipo de arquivo nao permitido.");
+        }
+    }
+
+    private String criarNomeSeguro(String originalFilename) {
+        String filename = originalFilename == null ? "arquivo" : Paths.get(originalFilename).getFileName().toString();
+        String extensao = "";
+        int dotIndex = filename.lastIndexOf('.');
+
+        if (dotIndex >= 0 && dotIndex < filename.length() - 1) {
+            extensao = filename.substring(dotIndex).replaceAll("[^A-Za-z0-9.]", "");
+        }
+
+        return UUID.randomUUID() + extensao;
+    }
+
+    private String validarTextoObrigatorio(String value, String fieldName, int maxLength) {
+        String trimmed = normalizarTextoOpcional(value, maxLength);
+        if (trimmed == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " e obrigatorio.");
+        }
+
+        return trimmed;
+    }
+
+    private String normalizarTextoOpcional(String value, int maxLength) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        if (trimmed.length() > maxLength) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Texto deve ter ate " + maxLength + " caracteres.");
+        }
+
+        return trimmed;
+    }
+
+    private String validarStatus(String status) {
+        String trimmed = validarTextoObrigatorio(status, "status", 50);
+        if (STATUS_PENDENTE.equalsIgnoreCase(trimmed)) {
+            return STATUS_PENDENTE;
+        }
+        if (STATUS_ENTREGUE.equalsIgnoreCase(trimmed)) {
+            return STATUS_ENTREGUE;
+        }
+        if (STATUS_ENVIADO.equalsIgnoreCase(trimmed)) {
+            return STATUS_ENVIADO;
+        }
+
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "status invalido.");
     }
 }

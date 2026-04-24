@@ -4,8 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { Lock, Mail, LogIn } from "lucide-react";
 import { motion } from "framer-motion";
 
-const employeeUsers = ["janaina@eva.com", "veronica@eva.com", "ana@eva.com", "vitor@eva.com"];
-
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -122,24 +120,6 @@ const Login = () => {
             </p>
           </div>
 
-          <div className="mt-4 rounded-xl bg-surface-2 border border-border p-3">
-            <p className="text-[11px] text-muted-foreground text-center mb-2 font-medium">Funcionários cadastrados:</p>
-            <div className="grid grid-cols-2 gap-1.5">
-              {employeeUsers.map((employeeUser) => (
-                <button
-                  key={employeeUser}
-                  type="button"
-                  onClick={() => {
-                    setEmail(employeeUser);
-                    setPassword("1958");
-                  }}
-                  className="text-[11px] text-primary hover:bg-eva-red-light rounded-lg py-1.5 px-2 transition-colors font-medium"
-                >
-                  {employeeUser}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </motion.div>
     </div>

@@ -16,7 +16,15 @@ public class AuthController {
 
     @PostMapping("/login")
     public Usuario login(@RequestBody Usuario usuario) {
+        if (usuario == null || isBlank(usuario.getUsername()) || isBlank(usuario.getSenha())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Usuario e senha sao obrigatorios.");
+        }
+
         return usuarioRepository.findByUsernameAndSenha(usuario.getUsername(), usuario.getSenha())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário ou senha inválidos!"));
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }
