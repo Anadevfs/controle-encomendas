@@ -14,6 +14,40 @@ const statusConfig = {
   atrasado: { label: "Atrasado", bgClass: "bg-eva-danger-light", textClass: "text-eva-danger", borderClass: "border-eva-danger/30" },
 };
 
+const formatDeliveredTraceValue = (pkg: Package) => {
+  if (!pkg.marcadoEnviadoPor) {
+    return null;
+  }
+
+  const directDateTimeMatch = pkg.dataEntrega?.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})/);
+
+  if (directDateTimeMatch) {
+    const [, , month, day, time] = directDateTimeMatch;
+    return `${pkg.marcadoEnviadoPor} · ${day}/${month} ${time}`;
+  }
+
+  if (!pkg.dataEntrega) {
+    return pkg.marcadoEnviadoPor;
+  }
+
+  const deliveredDate = new Date(pkg.dataEntrega);
+
+  if (Number.isNaN(deliveredDate.getTime())) {
+    return pkg.marcadoEnviadoPor;
+  }
+
+  const date = deliveredDate.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+  });
+  const time = deliveredDate.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return `${pkg.marcadoEnviadoPor} · ${date} ${time}`;
+};
+
 interface PackageDetailProps {
   pkg: Package | null;
   onMarkAsSent: (pkg: Package) => void | Promise<void>;
@@ -47,6 +81,7 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveObservation }: PackageDetailPr
   const hasObservationContent = observationInput.trim().length > 0;
   const hasObservationChanged = observationInput !== (pkg.observacoes ?? "");
   const canSaveObservation = hasObservationContent && hasObservationChanged;
+  const deliveredTraceValue = formatDeliveredTraceValue(pkg);
 
   return (
     <AnimatePresence mode="wait">
@@ -132,15 +167,15 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveObservation }: PackageDetailPr
             Rastreabilidade
           </p>
           <div className="space-y-2">
-            <TraceItem icon={UserCheck} label="Recebida por" value={pkg.recebidoPor} />
+            <TraceItem icon={UserCheck} label="Comunicada por" value={pkg.recebidoPor} />
             {pkg.observacoes?.trim() && (
               <TraceItem icon={ClipboardList} label="Observacoes" value={pkg.observacoes.trim()} />
             )}
             {pkg.fotoEnviadaPor && (
               <TraceItem icon={ImageIcon} label="Foto enviada por" value={pkg.fotoEnviadaPor} />
             )}
-            {pkg.marcadoEnviadoPor && (
-              <TraceItem icon={Send} label="Marcada enviada por" value={pkg.marcadoEnviadoPor} />
+            {deliveredTraceValue && (
+              <TraceItem icon={Send} label="Entregue por" value={deliveredTraceValue} />
             )}
           </div>
         </div>
