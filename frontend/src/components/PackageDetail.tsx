@@ -1,12 +1,26 @@
 import { useEffect, useState } from "react";
 
 import { Package } from "@/data/mockData";
-import { Camera, CheckCircle2, RefreshCw, User, Building2, Clock, Info, UserCheck, ImageIcon, Send, Phone, ClipboardList, type LucideIcon } from "lucide-react";
+import {
+  Camera,
+  CheckCircle2,
+  RefreshCw,
+  User,
+  Building2,
+  Clock,
+  Info,
+  UserCheck,
+  ImageIcon,
+  Send,
+  Phone,
+  ClipboardList,
+  type LucideIcon,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { formatPackageReceivedLabel } from "@/lib/package-datetime";
+import { formatPackageDateTimeValue, formatPackageReceivedLabel } from "@/lib/package-datetime";
 
 const statusConfig = {
   enviado: { label: "Entregue", bgClass: "bg-eva-green-light", textClass: "text-eva-green", borderClass: "border-eva-green/30" },
@@ -14,38 +28,18 @@ const statusConfig = {
   atrasado: { label: "Atrasado", bgClass: "bg-eva-danger-light", textClass: "text-eva-danger", borderClass: "border-eva-danger/30" },
 };
 
-const formatDeliveredTraceValue = (pkg: Package) => {
-  if (!pkg.marcadoEnviadoPor) {
+const formatTraceUserDateTimeValue = (name: string | undefined, dateTime: string | undefined) => {
+  if (!name) {
     return null;
   }
 
-  const directDateTimeMatch = pkg.dataEntrega?.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})/);
+  const formattedDateTime = formatPackageDateTimeValue(dateTime);
 
-  if (directDateTimeMatch) {
-    const [, , month, day, time] = directDateTimeMatch;
-    return `${pkg.marcadoEnviadoPor} · ${day}/${month} ${time}`;
+  if (!formattedDateTime) {
+    return name;
   }
 
-  if (!pkg.dataEntrega) {
-    return pkg.marcadoEnviadoPor;
-  }
-
-  const deliveredDate = new Date(pkg.dataEntrega);
-
-  if (Number.isNaN(deliveredDate.getTime())) {
-    return pkg.marcadoEnviadoPor;
-  }
-
-  const date = deliveredDate.toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-  });
-  const time = deliveredDate.toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-  return `${pkg.marcadoEnviadoPor} · ${date} ${time}`;
+  return `${name} \u00b7 ${formattedDateTime.date} ${formattedDateTime.time}`;
 };
 
 interface PackageDetailProps {
@@ -81,7 +75,8 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveObservation }: PackageDetailPr
   const hasObservationContent = observationInput.trim().length > 0;
   const hasObservationChanged = observationInput !== (pkg.observacoes ?? "");
   const canSaveObservation = hasObservationContent && hasObservationChanged;
-  const deliveredTraceValue = formatDeliveredTraceValue(pkg);
+  const communicatedTraceValue = formatTraceUserDateTimeValue(pkg.recebidoPor, pkg.dataRecebimento);
+  const deliveredTraceValue = formatTraceUserDateTimeValue(pkg.marcadoEnviadoPor, pkg.dataEntrega);
 
   return (
     <AnimatePresence mode="wait">
@@ -167,7 +162,9 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveObservation }: PackageDetailPr
             Rastreabilidade
           </p>
           <div className="space-y-2">
-            <TraceItem icon={UserCheck} label="Comunicada por" value={pkg.recebidoPor} />
+            {communicatedTraceValue && (
+              <TraceItem icon={UserCheck} label="Comunicada por" value={communicatedTraceValue} />
+            )}
             {pkg.observacoes?.trim() && (
               <TraceItem icon={ClipboardList} label="Observacoes" value={pkg.observacoes.trim()} />
             )}

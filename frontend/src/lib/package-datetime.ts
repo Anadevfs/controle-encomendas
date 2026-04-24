@@ -1,6 +1,6 @@
 import type { Package } from "@/data/mockData";
 
-const formatPackageDateTimeValue = (value: string | undefined) => {
+export const formatPackageDateTimeValue = (value: string | undefined) => {
   const directDateTimeMatch = value?.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})/);
 
   if (directDateTimeMatch) {
