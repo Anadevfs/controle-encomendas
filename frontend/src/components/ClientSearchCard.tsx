@@ -1,10 +1,21 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Building2, Loader2, MapPinned, PackagePlus, Phone, Search, User2 } from "lucide-react";
+import type { FormEvent } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Building2, Loader2, MapPinned, PackagePlus, Pencil, Phone, Plus, Search, User2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { apiGet } from "@/lib/api";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/use-toast";
+import { apiGet, apiPost, apiPut } from "@/lib/api";
 import type { Cliente } from "@/types/cliente";
 
 const MIN_SEARCH_LENGTH = 2;
@@ -37,9 +48,27 @@ const searchClientsByName = async (term: string) => {
 
 const fetchAllClients = async () => apiGet<Cliente[]>("/clientes");
 
+type ClientePayload = Omit<Cliente, "id">;
+type ClientFormMode = "create" | "edit";
+
+const emptyClientForm: ClientePayload = {
+  clientName: "",
+  companyName: "",
+  mailboxNumber: "",
+  whatsapp: "",
+};
+
+const buildClientPayload = (form: ClientePayload): ClientePayload => ({
+  clientName: form.clientName.trim(),
+  companyName: form.companyName.trim(),
+  mailboxNumber: form.mailboxNumber.trim(),
+  whatsapp: form.whatsapp?.trim() || null,
+});
+
 interface ClientSearchCardProps {
   selectedClient: Cliente | null;
   onSelectClient: (cliente: Cliente) => void;
+  onClientSaved?: (cliente: Cliente) => void;
   onRegisterPackage: () => void;
   isRegisteringPackage: boolean;
 }
@@ -47,11 +76,16 @@ interface ClientSearchCardProps {
 const ClientSearchCard = ({
   selectedClient,
   onSelectClient,
+  onClientSaved,
   onRegisterPackage,
   isRegisteringPackage,
 }: ClientSearchCardProps) => {
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [isListOpen, setIsListOpen] = useState(false);
+  const [clientFormMode, setClientFormMode] = useState<ClientFormMode>("create");
+  const [isClientFormOpen, setIsClientFormOpen] = useState(false);
+  const [clientForm, setClientForm] = useState<ClientePayload>(emptyClientForm);
   const deferredQuery = useDeferredValue(query.trim());
 
   const allClientsQuery = useQuery({
@@ -88,6 +122,17 @@ const ClientSearchCard = ({
     !!allClientsQuery.error ||
     (deferredQuery.length >= MIN_SEARCH_LENGTH && !!searchQuery.error);
 
+  const createClientMutation = useMutation({
+    mutationFn: (payload: ClientePayload) => apiPost<Cliente, ClientePayload>("/clientes", payload),
+  });
+
+  const updateClientMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: ClientePayload }) =>
+      apiPut<Cliente, ClientePayload>(`/clientes/${id}`, payload),
+  });
+
+  const isSavingClient = createClientMutation.isPending || updateClientMutation.isPending;
+
   useEffect(() => {
     if (!selectedClient) {
       return;
@@ -95,6 +140,75 @@ const ClientSearchCard = ({
 
     setQuery(selectedClient.clientName);
   }, [selectedClient]);
+
+  const openCreateClientForm = () => {
+    setClientForm({
+      ...emptyClientForm,
+      clientName: query.trim(),
+    });
+    setClientFormMode("create");
+    setIsClientFormOpen(true);
+    setIsListOpen(false);
+  };
+
+  const openEditClientForm = () => {
+    if (!selectedClient) {
+      return;
+    }
+
+    setClientForm({
+      clientName: selectedClient.clientName,
+      companyName: selectedClient.companyName,
+      mailboxNumber: selectedClient.mailboxNumber,
+      whatsapp: selectedClient.whatsapp ?? "",
+    });
+    setClientFormMode("edit");
+    setIsClientFormOpen(true);
+    setIsListOpen(false);
+  };
+
+  const handleClientFormSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (clientFormMode === "edit" && !selectedClient) {
+      return;
+    }
+
+    const payload = buildClientPayload(clientForm);
+
+    if (!payload.clientName || !payload.companyName || !payload.mailboxNumber) {
+      toast({
+        title: "Dados obrigatorios",
+        description: "Preencha nome do cliente, empresa e caixa postal.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const savedClient =
+        clientFormMode === "create"
+          ? await createClientMutation.mutateAsync(payload)
+          : await updateClientMutation.mutateAsync({ id: selectedClient!.id, payload });
+
+      await queryClient.invalidateQueries({ queryKey: ["clientes"] });
+      onSelectClient(savedClient);
+      onClientSaved?.(savedClient);
+      setQuery(savedClient.clientName);
+      setIsClientFormOpen(false);
+
+      toast({
+        title: clientFormMode === "create" ? "Cliente cadastrado" : "Cliente atualizado",
+        description: `${savedClient.clientName} esta selecionado(a) para a encomenda.`,
+      });
+    } catch {
+      toast({
+        title: clientFormMode === "create" ? "Erro ao cadastrar cliente" : "Erro ao editar cliente",
+        description: "Nao foi possivel salvar os dados do cliente na API.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="eva-card-elevated rounded-2xl p-6 flex flex-col gap-5">
@@ -172,13 +286,38 @@ const ClientSearchCard = ({
                 ))}
               </div>
             ) : (
-              <p className="px-4 py-3 text-sm text-muted-foreground">
-                Nenhum cliente encontrado com esse termo.
-              </p>
+              <div className="py-2">
+                <p className="px-4 py-2 text-sm text-muted-foreground">
+                  Nenhum cliente encontrado com esse termo.
+                </p>
+                <button
+                  type="button"
+                  onClick={openCreateClientForm}
+                  className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-primary transition-colors hover:bg-surface-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  + Cadastrar novo cliente
+                </button>
+              </div>
             )}
           </div>
         )}
       </div>
+
+      {selectedClient && (
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-2 rounded-lg text-muted-foreground hover:text-foreground"
+            onClick={openEditClientForm}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Editar cliente
+          </Button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <ClientDetailItem
@@ -220,6 +359,90 @@ const ClientSearchCard = ({
       <p className="text-xs text-muted-foreground border-t border-border pt-3">
         Buscar ou selecionar um cliente apenas preenche os dados. O registro acontece somente pelo botao acima.
       </p>
+
+      <Dialog open={isClientFormOpen} onOpenChange={setIsClientFormOpen}>
+        <DialogContent className="rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {clientFormMode === "create" ? "Cadastrar novo cliente" : "Editar cliente"}
+            </DialogTitle>
+            <DialogDescription>
+              {clientFormMode === "create"
+                ? "Informe os dados para criar um cliente e seleciona-lo."
+                : "Atualize o cadastro existente sem criar duplicidade."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form className="grid gap-4" onSubmit={handleClientFormSubmit}>
+            <div className="grid gap-2">
+              <Label htmlFor="clientName">Nome do cliente</Label>
+              <Input
+                id="clientName"
+                value={clientForm.clientName}
+                onChange={(event) =>
+                  setClientForm((currentForm) => ({ ...currentForm, clientName: event.target.value }))
+                }
+                maxLength={100}
+                required
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="companyName">Empresa</Label>
+              <Input
+                id="companyName"
+                value={clientForm.companyName}
+                onChange={(event) =>
+                  setClientForm((currentForm) => ({ ...currentForm, companyName: event.target.value }))
+                }
+                maxLength={100}
+                required
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="mailboxNumber">Caixa postal</Label>
+              <Input
+                id="mailboxNumber"
+                value={clientForm.mailboxNumber}
+                onChange={(event) =>
+                  setClientForm((currentForm) => ({ ...currentForm, mailboxNumber: event.target.value }))
+                }
+                maxLength={50}
+                required
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="whatsapp">WhatsApp</Label>
+              <Input
+                id="whatsapp"
+                value={clientForm.whatsapp ?? ""}
+                onChange={(event) =>
+                  setClientForm((currentForm) => ({ ...currentForm, whatsapp: event.target.value }))
+                }
+                maxLength={30}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl"
+                onClick={() => setIsClientFormOpen(false)}
+                disabled={isSavingClient}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" className="rounded-xl" disabled={isSavingClient}>
+                {isSavingClient && <Loader2 className="h-4 w-4 animate-spin" />}
+                Salvar cliente
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

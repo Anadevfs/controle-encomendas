@@ -157,6 +157,42 @@ export async function apiPatch<TResponse, TBody = undefined>(path: string, body?
   throw lastError ?? new Error("API request failed");
 }
 
+export async function apiPut<TResponse, TBody>(path: string, body: TBody): Promise<TResponse> {
+  const normalizedPath = normalizeApiPath(path);
+  const candidates = getApiBaseCandidates();
+
+  let lastError: Error | null = null;
+
+  for (const baseUrl of candidates) {
+    try {
+      const response = await fetch(`${baseUrl}${normalizedPath}`, {
+        method: "PUT",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const contentType = response.headers.get("content-type") ?? "";
+
+      if (!contentType.includes("application/json")) {
+        throw new Error("Invalid API response");
+      }
+
+      return (await response.json()) as TResponse;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error("API request failed");
+    }
+  }
+
+  throw lastError ?? new Error("API request failed");
+}
+
 export async function apiDelete(path: string): Promise<void> {
   const normalizedPath = normalizeApiPath(path);
   const candidates = getApiBaseCandidates();

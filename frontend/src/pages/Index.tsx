@@ -200,6 +200,23 @@ const Index = () => {
     setSelectedClient(cliente);
   };
 
+  const handleClientSaved = (cliente: Cliente) => {
+    setSelectedClient(cliente);
+    setPackageList((currentPackages) =>
+      currentPackages.map((pkg) =>
+        pkg.clientId === cliente.id
+          ? {
+              ...pkg,
+              cliente: cliente.clientName,
+              empresa: cliente.companyName || "Empresa nao informada",
+              sala: cliente.mailboxNumber || "-",
+              whatsapp: cliente.whatsapp || "",
+            }
+          : pkg
+      )
+    );
+  };
+
   const handleRegisterPackage = async () => {
     if (!selectedClient || isRegisteringPackage) {
       return;
@@ -446,6 +463,7 @@ const Index = () => {
             <ClientSearchCard
               selectedClient={selectedClient}
               onSelectClient={handleSelectClient}
+              onClientSaved={handleClientSaved}
               onRegisterPackage={handleRegisterPackage}
               isRegisteringPackage={isRegisteringPackage}
             />
