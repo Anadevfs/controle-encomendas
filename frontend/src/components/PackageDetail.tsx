@@ -8,6 +8,7 @@ import {
   User,
   Building2,
   Clock,
+  History,
   Info,
   UserCheck,
   ImageIcon,
@@ -77,6 +78,10 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveObservation }: PackageDetailPr
   const canSaveObservation = hasObservationContent && hasObservationChanged;
   const communicatedTraceValue = formatTraceUserDateTimeValue(pkg.recebidoPor, pkg.dataRecebimento);
   const deliveredTraceValue = formatTraceUserDateTimeValue(pkg.marcadoEnviadoPor, pkg.dataEntrega);
+  const observationUpdatedTraceValue = formatTraceUserDateTimeValue(
+    pkg.observacaoAtualizadaPor,
+    pkg.observacaoAtualizadaEm
+  );
 
   return (
     <AnimatePresence mode="wait">
@@ -166,7 +171,12 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveObservation }: PackageDetailPr
               <TraceItem icon={UserCheck} label="Comunicada por" value={communicatedTraceValue} />
             )}
             {pkg.observacoes?.trim() && (
-              <TraceItem icon={ClipboardList} label="Observacoes" value={pkg.observacoes.trim()} />
+              <>
+                <TraceItem icon={ClipboardList} label="Observacoes" value={pkg.observacoes.trim()} />
+                {observationUpdatedTraceValue && (
+                  <TraceItem icon={UserCheck} label="Salva por" value={observationUpdatedTraceValue} />
+                )}
+              </>
             )}
             {pkg.fotoEnviadaPor && (
               <TraceItem icon={ImageIcon} label="Foto enviada por" value={pkg.fotoEnviadaPor} />
@@ -175,6 +185,20 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveObservation }: PackageDetailPr
               <TraceItem icon={Send} label="Entregue por" value={deliveredTraceValue} />
             )}
           </div>
+
+          {pkg.auditoriaObservacoes && pkg.auditoriaObservacoes.length > 0 && (
+            <details className="mt-3 rounded-lg bg-surface-2 px-3 py-2">
+              <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-foreground">
+                <History className="h-3.5 w-3.5 text-muted-foreground" />
+                Historico de observacoes
+              </summary>
+              <div className="mt-2 space-y-2 border-t border-border pt-2">
+                {pkg.auditoriaObservacoes.map((audit) => (
+                  <ObservationAuditItem key={audit.id} audit={audit} />
+                ))}
+              </div>
+            </details>
+          )}
         </div>
 
         <div className="border-t border-border pt-4">
@@ -234,5 +258,25 @@ const TraceItem = ({ icon: Icon, label, value }: { icon: LucideIcon; label: stri
     <span className="text-xs font-semibold text-foreground">{value}</span>
   </div>
 );
+
+const ObservationAuditItem = ({ audit }: { audit: NonNullable<Package["auditoriaObservacoes"]>[number] }) => {
+  const dateTime = formatPackageDateTimeValue(audit.dataHora);
+  const dateTimeLabel = dateTime ? `${dateTime.date} ${dateTime.time}` : "--/-- --:--";
+  const user = audit.usuario || "Usuario nao identificado";
+  const oldValue = audit.valorAntigo?.trim();
+  const newValue = audit.valorNovo?.trim() || "observacao removida";
+  const message =
+    audit.acao === "OBSERVACAO_CRIADA" || !oldValue
+      ? `${user} criou observacao "${newValue}"`
+      : `${user} alterou de "${oldValue}" para "${newValue}"`;
+
+  return (
+    <p className="text-xs leading-relaxed text-muted-foreground">
+      <span className="font-semibold text-foreground">{dateTimeLabel}</span>
+      {" · "}
+      {message}
+    </p>
+  );
+};
 
 export default PackageDetail;

@@ -2,6 +2,8 @@ package com.eva.controleencomendas.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 public class Encomenda {
@@ -22,6 +24,12 @@ public class Encomenda {
     private String recebidoPor;
     private String marcadoEnviadoPor;
     private String observacao;
+    private String observacaoAtualizadaPor;
+    private LocalDateTime observacaoAtualizadaEm;
+
+    @OneToMany(mappedBy = "encomenda", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("dataHora DESC")
+    private List<EncomendaObservacaoAuditoria> auditoriaObservacoes = new ArrayList<>();
 
     // maquininha de Bip
     private String codigoRastreio;
@@ -55,6 +63,12 @@ public class Encomenda {
     public void setMarcadoEnviadoPor(String marcadoEnviadoPor) { this.marcadoEnviadoPor = marcadoEnviadoPor; }
     public String getObservacao() { return observacao; }
     public void setObservacao(String observacao) { this.observacao = observacao; }
+    public String getObservacaoAtualizadaPor() { return observacaoAtualizadaPor; }
+    public void setObservacaoAtualizadaPor(String observacaoAtualizadaPor) { this.observacaoAtualizadaPor = observacaoAtualizadaPor; }
+    public LocalDateTime getObservacaoAtualizadaEm() { return observacaoAtualizadaEm; }
+    public void setObservacaoAtualizadaEm(LocalDateTime observacaoAtualizadaEm) { this.observacaoAtualizadaEm = observacaoAtualizadaEm; }
+    public List<EncomendaObservacaoAuditoria> getAuditoriaObservacoes() { return auditoriaObservacoes; }
+    public void setAuditoriaObservacoes(List<EncomendaObservacaoAuditoria> auditoriaObservacoes) { this.auditoriaObservacoes = auditoriaObservacoes; }
     public String getLinkWhatsapp() { return linkWhatsapp; }
     public void setLinkWhatsapp(String linkWhatsapp) { this.linkWhatsapp = linkWhatsapp; }
     public String getCodigoRastreio() { return codigoRastreio; }

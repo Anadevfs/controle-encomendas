@@ -3,9 +3,11 @@ package com.eva.controleencomendas.controller;
 import com.eva.controleencomendas.model.Encomenda;
 import com.eva.controleencomendas.model.Cliente;
 import com.eva.controleencomendas.model.Atividade;
+import com.eva.controleencomendas.model.EncomendaObservacaoAuditoria;
 import com.eva.controleencomendas.repository.EncomendaRepository;
 import com.eva.controleencomendas.repository.ClienteRepository;
 import com.eva.controleencomendas.repository.AtividadeRepository;
+import com.eva.controleencomendas.repository.UsuarioRepository;
 import com.eva.controleencomendas.service.WhatsAppService;
 import com.eva.controleencomendas.dto.DashboardDTO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +20,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.io.IOException;
 import java.nio.file.*;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Objects;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,6 +34,10 @@ public class EncomendaController {
     private static final String STATUS_ENTREGUE = "Entregue";
     private static final String STATUS_ENVIADO = "Enviado";
     private static final String STATUS_PENDENTE = "Pendente";
+    private static final String ACAO_OBSERVACAO_CRIADA = "OBSERVACAO_CRIADA";
+    private static final String ACAO_OBSERVACAO_ALTERADA = "OBSERVACAO_ALTERADA";
+    private static final String USUARIO_NAO_IDENTIFICADO = "Usuario nao identificado";
+    private static final ZoneId ZONA_SISTEMA = ZoneId.of("America/Sao_Paulo");
     private static final long MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
             "image/jpeg",
@@ -47,6 +55,9 @@ public class EncomendaController {
 
     @Autowired
     private AtividadeRepository atividadeRepository;
+
+    @Autowired
+    private UsuarioRepository usuarioRepository;
 
     @Autowired
     private WhatsAppService whatsAppService;
@@ -98,6 +109,8 @@ public class EncomendaController {
         encomenda.setRecebidoPor(recebidoPorValido);
         encomenda.setMarcadoEnviadoPor(null);
         encomenda.setObservacao(null);
+        encomenda.setObservacaoAtualizadaPor(null);
+        encomenda.setObservacaoAtualizadaEm(null);
 
         Encomenda salva = encomendaRepository.save(encomenda);
 
@@ -173,7 +186,28 @@ public class EncomendaController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Encomenda nao encontrada"));
 
         String observacao = body.get("observacao");
-        encomenda.setObservacao(normalizarTextoOpcional(observacao, 1000));
+        String novaObservacao = normalizarTextoOpcional(observacao, 1000);
+        String observacaoAtual = encomenda.getObservacao();
+
+        if (Objects.equals(observacaoAtual, novaObservacao)) {
+            return encomenda;
+        }
+
+        String usuario = resolverUsuarioAuditoria(body);
+        LocalDateTime dataHora = LocalDateTime.now(ZONA_SISTEMA);
+        String acao = observacaoAtual == null ? ACAO_OBSERVACAO_CRIADA : ACAO_OBSERVACAO_ALTERADA;
+
+        encomenda.setObservacao(novaObservacao);
+        encomenda.setObservacaoAtualizadaPor(usuario);
+        encomenda.setObservacaoAtualizadaEm(dataHora);
+        encomenda.getAuditoriaObservacoes().add(0, new EncomendaObservacaoAuditoria(
+                encomenda,
+                usuario,
+                observacaoAtual,
+                novaObservacao,
+                dataHora,
+                acao
+        ));
 
         return encomendaRepository.save(encomenda);
     }
@@ -276,6 +310,27 @@ public class EncomendaController {
         }
 
         return trimmed;
+    }
+
+    private String resolverUsuarioAuditoria(Map<String, String> body) {
+        String usuarioId = normalizarTextoOpcional(body.get("usuarioId"), 30);
+        if (usuarioId != null) {
+            try {
+                Long id = Long.valueOf(usuarioId);
+                return usuarioRepository.findById(id)
+                        .map(usuario -> normalizarTextoOpcional(usuario.getNome(), 120))
+                        .orElse(USUARIO_NAO_IDENTIFICADO);
+            } catch (NumberFormatException ignored) {
+                return USUARIO_NAO_IDENTIFICADO;
+            }
+        }
+
+        String usuario = normalizarTextoOpcional(body.get("usuario"), 120);
+        if (usuario != null) {
+            return usuario;
+        }
+
+        return USUARIO_NAO_IDENTIFICADO;
     }
 
     private String validarStatus(String status) {

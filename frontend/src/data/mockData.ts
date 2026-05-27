@@ -15,10 +15,22 @@ export interface Package {
   recebidoPor: string;
   whatsapp?: string;
   observacoes?: string;
+  observacaoAtualizadaPor?: string;
+  observacaoAtualizadaEm?: string;
+  auditoriaObservacoes?: PackageObservationAudit[];
   codigoRastreio?: string;
   textoAuxiliar?: string;
   fotoEnviadaPor?: string;
   marcadoEnviadoPor?: string;
+}
+
+export interface PackageObservationAudit {
+  id: number;
+  usuario: string;
+  valorAntigo: string | null;
+  valorNovo: string | null;
+  dataHora: string;
+  acao: "OBSERVACAO_CRIADA" | "OBSERVACAO_ALTERADA" | string;
 }
 
 export const packages: Package[] = [

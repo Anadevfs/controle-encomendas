@@ -19,6 +19,9 @@ interface ApiEncomenda {
   id: number;
   descricao: string;
   observacao: string | null;
+  observacaoAtualizadaPor: string | null;
+  observacaoAtualizadaEm: string | null;
+  auditoriaObservacoes?: ApiObservationAudit[];
   status: string;
   dataRecebimento: string;
   dataEntrega: string | null;
@@ -32,6 +35,15 @@ interface ApiEncomenda {
     mailboxNumber: string;
     whatsapp: string | null;
   };
+}
+
+interface ApiObservationAudit {
+  id: number;
+  usuario: string;
+  valorAntigo: string | null;
+  valorNovo: string | null;
+  dataHora: string;
+  acao: string;
 }
 
 const formatPackageTime = (value: string) => {
@@ -82,6 +94,9 @@ const mapEncomendaToPackage = (encomenda: ApiEncomenda): Package => ({
   funcionario: encomenda.marcadoEnviadoPor || encomenda.recebidoPor || "Nao informado",
   descricao: encomenda.descricao || "Encomenda cadastrada na API.",
   observacoes: encomenda.observacao || undefined,
+  observacaoAtualizadaPor: encomenda.observacaoAtualizadaPor || undefined,
+  observacaoAtualizadaEm: encomenda.observacaoAtualizadaEm || undefined,
+  auditoriaObservacoes: encomenda.auditoriaObservacoes ?? [],
   recebidoPor: encomenda.recebidoPor || "Nao informado",
   whatsapp: encomenda.cliente.whatsapp || "",
   marcadoEnviadoPor: encomenda.marcadoEnviadoPor || undefined,
@@ -108,6 +123,9 @@ const mergeFrontendFields = (currentPackages: Package[], nextPackages: Package[]
     return {
       ...pkg,
       observacoes: pkg.observacoes ?? currentPackage.observacoes,
+      observacaoAtualizadaPor: pkg.observacaoAtualizadaPor ?? currentPackage.observacaoAtualizadaPor,
+      observacaoAtualizadaEm: pkg.observacaoAtualizadaEm ?? currentPackage.observacaoAtualizadaEm,
+      auditoriaObservacoes: pkg.auditoriaObservacoes ?? currentPackage.auditoriaObservacoes,
       codigoRastreio: currentPackage.codigoRastreio,
       textoAuxiliar: currentPackage.textoAuxiliar,
     };
@@ -278,6 +296,9 @@ const Index = () => {
           recebidoPor: pkg.recebidoPor || updatedFromApi.recebidoPor || employeeName,
           whatsapp: pkg.whatsapp || updatedFromApi.whatsapp,
           observacoes: updatedFromApi.observacoes ?? pkg.observacoes,
+          observacaoAtualizadaPor: updatedFromApi.observacaoAtualizadaPor ?? pkg.observacaoAtualizadaPor,
+          observacaoAtualizadaEm: updatedFromApi.observacaoAtualizadaEm ?? pkg.observacaoAtualizadaEm,
+          auditoriaObservacoes: updatedFromApi.auditoriaObservacoes ?? pkg.auditoriaObservacoes,
           codigoRastreio: pkg.codigoRastreio,
           marcadoEnviadoPor: employeeName,
           textoAuxiliar: `Encomenda marcada como enviada por ${employeeName} e persistida na API.`,
@@ -330,8 +351,10 @@ const Index = () => {
     if (pkg.origin === "api" && pkg.backendId) {
       try {
         const updatedFromApi = mapEncomendaToPackage(
-          await apiPatch<ApiEncomenda, { observacao: string }>(`/encomendas/${pkg.backendId}/observacao`, {
+          await apiPatch<ApiEncomenda, { observacao: string; usuario: string; usuarioId?: string }>(`/encomendas/${pkg.backendId}/observacao`, {
             observacao: observacoes,
+            usuario: employeeName,
+            usuarioId: user?.id ? String(user.id) : undefined,
           })
         );
         const enrichedUpdatedPackage: Package = {
@@ -342,6 +365,9 @@ const Index = () => {
           codigoRastreio: pkg.codigoRastreio,
           fotoEnviadaPor: pkg.fotoEnviadaPor,
           marcadoEnviadoPor: pkg.marcadoEnviadoPor || updatedFromApi.marcadoEnviadoPor,
+          observacaoAtualizadaPor: updatedFromApi.observacaoAtualizadaPor ?? employeeName,
+          observacaoAtualizadaEm: updatedFromApi.observacaoAtualizadaEm,
+          auditoriaObservacoes: updatedFromApi.auditoriaObservacoes ?? pkg.auditoriaObservacoes,
           textoAuxiliar: pkg.textoAuxiliar,
         };
 
@@ -370,6 +396,19 @@ const Index = () => {
     const updatedPackage: Package = {
       ...pkg,
       observacoes,
+      observacaoAtualizadaPor: employeeName,
+      observacaoAtualizadaEm: new Date().toISOString(),
+      auditoriaObservacoes: [
+        {
+          id: Date.now(),
+          usuario: employeeName,
+          valorAntigo: pkg.observacoes ?? null,
+          valorNovo: observacoes,
+          dataHora: new Date().toISOString(),
+          acao: pkg.observacoes ? "OBSERVACAO_ALTERADA" : "OBSERVACAO_CRIADA",
+        },
+        ...(pkg.auditoriaObservacoes ?? []),
+      ],
     };
 
     setPackageList((currentPackages) =>
