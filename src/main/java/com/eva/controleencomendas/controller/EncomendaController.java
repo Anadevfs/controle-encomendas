@@ -10,6 +10,8 @@ import com.eva.controleencomendas.repository.AtividadeRepository;
 import com.eva.controleencomendas.repository.UsuarioRepository;
 import com.eva.controleencomendas.service.WhatsAppService;
 import com.eva.controleencomendas.dto.DashboardDTO;
+import com.eva.controleencomendas.dto.EncomendaObservacaoAuditoriaDTO;
+import com.eva.controleencomendas.dto.EncomendaResponseDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,8 +21,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +41,7 @@ public class EncomendaController {
     private static final String ACAO_OBSERVACAO_CRIADA = "OBSERVACAO_CRIADA";
     private static final String ACAO_OBSERVACAO_ALTERADA = "OBSERVACAO_ALTERADA";
     private static final String USUARIO_NAO_IDENTIFICADO = "Usuario nao identificado";
+    private static final Set<String> USUARIOS_AUTORIZADOS_AUDITORIA_OBSERVACOES = Set.of("ana", "veronica");
     private static final ZoneId ZONA_SISTEMA = ZoneId.of("America/Sao_Paulo");
     private static final long MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
@@ -63,8 +68,13 @@ public class EncomendaController {
     private WhatsAppService whatsAppService;
 
     @GetMapping
-    public List<Encomenda> listarTodas() {
-        return encomendaRepository.findAll();
+    public List<EncomendaResponseDTO> listarTodas(
+            @RequestParam(value = "usuario", required = false) String usuario,
+            @RequestParam(value = "usuarioId", required = false) String usuarioId) {
+        boolean podeVerAuditoria = podeAcessarAuditoriaObservacoes(usuario, usuarioId);
+        return encomendaRepository.findAll().stream()
+                .map(encomenda -> EncomendaResponseDTO.from(encomenda, podeVerAuditoria))
+                .toList();
     }
 
     // Endpoint para buscar as atividades do log
@@ -74,7 +84,7 @@ public class EncomendaController {
     }
 
     @PostMapping
-    public Encomenda salvarEncomenda(
+    public EncomendaResponseDTO salvarEncomenda(
             @RequestParam("clienteId") Long clienteId,
             @RequestParam("descricao") String descricao,
             @RequestParam("arquivo") MultipartFile arquivo,
@@ -122,7 +132,7 @@ public class EncomendaController {
             salva.setLinkWhatsapp(link);
         }
 
-        return salva;
+        return EncomendaResponseDTO.from(salva, podeAcessarAuditoriaObservacoes(recebidoPorValido, null));
     }
 
     @GetMapping("/dashboard")
@@ -135,7 +145,7 @@ public class EncomendaController {
     }
 
     @PatchMapping("/{id}/status")
-    public Encomenda atualizarStatus(@PathVariable Long id, @RequestBody Map<String, String> body) {
+    public EncomendaResponseDTO atualizarStatus(@PathVariable Long id, @RequestBody Map<String, String> body) {
         if (body == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Corpo da requisicao e obrigatorio.");
         }
@@ -154,11 +164,11 @@ public class EncomendaController {
             atividadeRepository.save(new Atividade(mensagemLog, "SUCESSO"));
         }
 
-        return encomendaRepository.save(encomenda);
+        return EncomendaResponseDTO.from(encomendaRepository.save(encomenda), false);
     }
 
     @PatchMapping("/{id}/entregar")
-    public Encomenda entregar(
+    public EncomendaResponseDTO entregar(
             @PathVariable Long id,
             @RequestParam(value = "marcadoEnviadoPor", required = false) String marcadoEnviadoPor) {
         Encomenda encomenda = encomendaRepository.findById(id)
@@ -173,11 +183,14 @@ public class EncomendaController {
         // REGISTRA NO LOG: Entrega
         atividadeRepository.save(new Atividade("Encomenda entregue - " + encomenda.getCliente().getCompanyName(), "SUCESSO"));
 
-        return encomendaRepository.save(encomenda);
+        return EncomendaResponseDTO.from(
+                encomendaRepository.save(encomenda),
+                podeAcessarAuditoriaObservacoes(marcadoEnviadoPorValido, null)
+        );
     }
 
     @PatchMapping("/{id}/observacao")
-    public Encomenda atualizarObservacao(@PathVariable Long id, @RequestBody Map<String, String> body) {
+    public EncomendaResponseDTO atualizarObservacao(@PathVariable Long id, @RequestBody Map<String, String> body) {
         if (body == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Corpo da requisicao e obrigatorio.");
         }
@@ -190,7 +203,10 @@ public class EncomendaController {
         String observacaoAtual = encomenda.getObservacao();
 
         if (Objects.equals(observacaoAtual, novaObservacao)) {
-            return encomenda;
+            return EncomendaResponseDTO.from(
+                    encomenda,
+                    podeAcessarAuditoriaObservacoes(body.get("usuario"), body.get("usuarioId"))
+            );
         }
 
         String usuario = resolverUsuarioAuditoria(body);
@@ -209,10 +225,30 @@ public class EncomendaController {
                 acao
         ));
 
-        return encomendaRepository.save(encomenda);
+        return EncomendaResponseDTO.from(
+                encomendaRepository.save(encomenda),
+                podeAcessarAuditoriaObservacoes(body.get("usuario"), body.get("usuarioId"))
+        );
     }
 
     // Busca e histórico 100%
+    @GetMapping("/{id}/observacoes/auditoria")
+    public List<EncomendaObservacaoAuditoriaDTO> buscarAuditoriaObservacoes(
+            @PathVariable Long id,
+            @RequestParam(value = "usuario", required = false) String usuario,
+            @RequestParam(value = "usuarioId", required = false) String usuarioId) {
+        if (!podeAcessarAuditoriaObservacoes(usuario, usuarioId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuario sem permissao para acessar auditoria de observacoes.");
+        }
+
+        return encomendaRepository.findWithAuditoriaObservacoesById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Encomenda nao encontrada"))
+                .getAuditoriaObservacoes()
+                .stream()
+                .map(EncomendaObservacaoAuditoriaDTO::from)
+                .toList();
+    }
+
     private void preencherDataEntregaSeNecessario(Encomenda encomenda, String status) {
         if (status == null || encomenda.getDataEntrega() != null) {
             return;
@@ -224,10 +260,12 @@ public class EncomendaController {
     }
 
     @GetMapping("/buscar")
-    public List<Encomenda> buscarEncomendas(
+    public List<EncomendaResponseDTO> buscarEncomendas(
             @RequestParam(value = "termo", required = false) String termo,
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "funcionario", required = false) String funcionario,
+            @RequestParam(value = "usuario", required = false) String usuario,
+            @RequestParam(value = "usuarioId", required = false) String usuarioId,
             @RequestParam(value = "dataInicial", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate dataInicial,
             @RequestParam(value = "dataFinal", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate dataFinal) {
 
@@ -239,13 +277,17 @@ public class EncomendaController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "dataInicial nao pode ser maior que dataFinal.");
         }
 
+        boolean podeVerAuditoria = podeAcessarAuditoriaObservacoes(usuario, usuarioId);
+
         return encomendaRepository.buscarHistorico(
                 normalizarTextoOpcional(termo, 100),
                 normalizarTextoOpcional(status, 50),
                 normalizarTextoOpcional(funcionario, 120),
                 inicio,
                 fim
-        );
+        ).stream()
+                .map(encomenda -> EncomendaResponseDTO.from(encomenda, podeVerAuditoria))
+                .toList();
     }
 
     // Rota para deletar uma encomenda pelo ID
@@ -331,6 +373,38 @@ public class EncomendaController {
         }
 
         return USUARIO_NAO_IDENTIFICADO;
+    }
+
+    private boolean podeAcessarAuditoriaObservacoes(String usuario, String usuarioId) {
+        String usuarioIdValido = normalizarTextoOpcional(usuarioId, 30);
+
+        if (usuarioIdValido != null) {
+            try {
+                Long id = Long.valueOf(usuarioIdValido);
+                return usuarioRepository.findById(id)
+                        .map(usuarioEncontrado -> primeiroNomeNormalizado(usuarioEncontrado.getNome()))
+                        .filter(USUARIOS_AUTORIZADOS_AUDITORIA_OBSERVACOES::contains)
+                        .isPresent();
+            } catch (NumberFormatException ignored) {
+                return false;
+            }
+        }
+
+        String primeiroNome = primeiroNomeNormalizado(usuario);
+        return USUARIOS_AUTORIZADOS_AUDITORIA_OBSERVACOES.contains(primeiroNome);
+    }
+
+    private String primeiroNomeNormalizado(String usuario) {
+        String texto = normalizarTextoOpcional(usuario, 120);
+
+        if (texto == null) {
+            return "";
+        }
+
+        String primeiroNome = texto.split("\\s+")[0];
+        return Normalizer.normalize(primeiroNome, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT);
     }
 
     private String validarStatus(String status) {

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface EncomendaRepository extends JpaRepository<Encomenda, Long> {
@@ -17,6 +18,10 @@ public interface EncomendaRepository extends JpaRepository<Encomenda, Long> {
     @Override
     @EntityGraph(attributePaths = "auditoriaObservacoes")
     List<Encomenda> findAll();
+
+    @EntityGraph(attributePaths = "auditoriaObservacoes")
+    @Query("SELECT e FROM Encomenda e WHERE e.id = :id")
+    Optional<Encomenda> findWithAuditoriaObservacoesById(@Param("id") Long id);
 
     long countByStatus(String status);
 

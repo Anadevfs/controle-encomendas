@@ -14,6 +14,7 @@ import { apiDelete, apiGet, apiPatch, apiPostForm } from "@/lib/api";
 import type { Cliente } from "@/types/cliente";
 
 const POLLING_INTERVAL_MS = 10000;
+const OBSERVATION_HISTORY_ALLOWED_USERS = new Set(["ana", "veronica"]);
 
 interface ApiEncomenda {
   id: number;
@@ -103,6 +104,30 @@ const mapEncomendaToPackage = (encomenda: ApiEncomenda): Package => ({
   textoAuxiliar: `Dados restaurados da API para a encomenda ${encomenda.id}.`,
 });
 
+const getFirstNameKey = (name: string | undefined) =>
+  (name ?? "")
+    .trim()
+    .split(/\s+/)[0]
+    ?.normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase() ?? "";
+
+const canUserViewObservationHistory = (name: string | undefined) =>
+  OBSERVATION_HISTORY_ALLOWED_USERS.has(getFirstNameKey(name));
+
+const appendCurrentUserParams = (path: string, user: { id: number; name: string } | null) => {
+  if (!user) {
+    return path;
+  }
+
+  const [basePath, queryString = ""] = path.split("?");
+  const params = new URLSearchParams(queryString);
+  params.set("usuario", user.name);
+  params.set("usuarioId", String(user.id));
+
+  return `${basePath}?${params.toString()}`;
+};
+
 const sortPackages = (items: Package[]) =>
   [...items].sort((left, right) => {
     const rightKey = right.backendId ?? right.id;
@@ -138,6 +163,7 @@ const buildPersistedDescription = (cliente: Cliente) =>
 const Index = () => {
   const { user } = useAuth();
   const employeeName = user?.name ?? "Atendente";
+  const canViewObservationHistory = canUserViewObservationHistory(user?.name);
   const [packageList, setPackageList] = useState<Package[]>(packages);
   const [selectedClient, setSelectedClient] = useState<Cliente | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState<number | null>(packages[0]?.id ?? null);
@@ -173,7 +199,7 @@ const Index = () => {
 
     const loadPackages = async () => {
       try {
-        const apiPackages = await apiGet<ApiEncomenda[]>("/encomendas");
+        const apiPackages = await apiGet<ApiEncomenda[]>(appendCurrentUserParams("/encomendas", user));
         if (!isMounted) {
           return;
         }
@@ -208,7 +234,7 @@ const Index = () => {
         clearInterval(pollingId);
       }
     };
-  }, []);
+  }, [user]);
 
   const handleSelectPackage = (pkg: Package) => {
     setSelectedPackageId(pkg.id);
@@ -510,6 +536,7 @@ const Index = () => {
               pkg={selectedPackage}
               onMarkAsSent={handleMarkAsSent}
               onSaveObservation={handleSaveObservation}
+              canViewObservationHistory={canViewObservationHistory}
             />
           </div>
         </div>
