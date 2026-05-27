@@ -252,6 +252,63 @@ const Index = () => {
     };
   }, [user, canViewObservationHistory]);
 
+  useEffect(() => {
+    if (!canViewObservationHistory || !selectedPackage?.backendId) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadObservationAudit = async () => {
+      try {
+        const auditoriaObservacoes = await apiGet<ApiObservationAudit[]>(
+          appendCurrentUserParams(`/encomendas/${selectedPackage.backendId}/observacoes/auditoria`, user)
+        );
+
+        if (!isMounted) {
+          return;
+        }
+
+        console.log("auditoria", auditoriaObservacoes);
+        console.log("tamanho auditoria", auditoriaObservacoes.length);
+        console.log("role usuario logado", user?.role, {
+          isAdmin: user?.isAdmin,
+          canViewObservationHistory,
+        });
+
+        setPackageList((currentPackages) =>
+          currentPackages.map((currentPackage) =>
+            currentPackage.id === selectedPackage.id
+              ? {
+                  ...currentPackage,
+                  auditoriaObservacoes,
+                }
+              : currentPackage
+          )
+        );
+      } catch (error) {
+        console.log("auditoria", []);
+        console.log("tamanho auditoria", 0);
+        console.log("role usuario logado", user?.role, {
+          isAdmin: user?.isAdmin,
+          canViewObservationHistory,
+          erro: error instanceof Error ? error.message : "erro desconhecido",
+        });
+      }
+    };
+
+    void loadObservationAudit();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    canViewObservationHistory,
+    selectedPackage?.backendId,
+    selectedPackage?.id,
+    user,
+  ]);
+
   const handleSelectPackage = (pkg: Package) => {
     setSelectedPackageId(pkg.id);
   };

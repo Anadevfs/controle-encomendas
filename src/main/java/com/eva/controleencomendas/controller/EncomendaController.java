@@ -7,6 +7,7 @@ import com.eva.controleencomendas.model.EncomendaObservacaoAuditoria;
 import com.eva.controleencomendas.repository.EncomendaRepository;
 import com.eva.controleencomendas.repository.ClienteRepository;
 import com.eva.controleencomendas.repository.AtividadeRepository;
+import com.eva.controleencomendas.repository.EncomendaObservacaoAuditoriaRepository;
 import com.eva.controleencomendas.repository.UsuarioRepository;
 import com.eva.controleencomendas.service.WhatsAppService;
 import com.eva.controleencomendas.dto.DashboardDTO;
@@ -16,6 +17,7 @@ import com.eva.controleencomendas.dto.UsuarioResponseDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -58,6 +60,9 @@ public class EncomendaController {
 
     @Autowired
     private AtividadeRepository atividadeRepository;
+
+    @Autowired
+    private EncomendaObservacaoAuditoriaRepository auditoriaObservacaoRepository;
 
     @Autowired
     private UsuarioRepository usuarioRepository;
@@ -190,6 +195,7 @@ public class EncomendaController {
     }
 
     @PatchMapping("/{id}/observacao")
+    @Transactional
     public EncomendaResponseDTO atualizarObservacao(@PathVariable Long id, @RequestBody Map<String, String> body) {
         if (body == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Corpo da requisicao e obrigatorio.");
@@ -216,14 +222,16 @@ public class EncomendaController {
         encomenda.setObservacao(novaObservacao);
         encomenda.setObservacaoAtualizadaPor(usuario);
         encomenda.setObservacaoAtualizadaEm(dataHora);
-        encomenda.getAuditoriaObservacoes().add(0, new EncomendaObservacaoAuditoria(
+        EncomendaObservacaoAuditoria auditoria = new EncomendaObservacaoAuditoria(
                 encomenda,
                 usuario,
                 observacaoAtual,
                 novaObservacao,
                 dataHora,
                 acao
-        ));
+        );
+        auditoriaObservacaoRepository.save(auditoria);
+        encomenda.getAuditoriaObservacoes().add(0, auditoria);
 
         return EncomendaResponseDTO.from(
                 encomendaRepository.save(encomenda),
@@ -243,9 +251,15 @@ public class EncomendaController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuario sem permissao para acessar auditoria de observacoes.");
         }
 
-        return encomendaRepository.findWithAuditoriaObservacoesById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Encomenda nao encontrada"))
-                .getAuditoriaObservacoes()
+        if (!encomendaRepository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Encomenda nao encontrada");
+        }
+
+        return buscarAuditoriaObservacoesPorEncomenda(id);
+    }
+
+    private List<EncomendaObservacaoAuditoriaDTO> buscarAuditoriaObservacoesPorEncomenda(Long id) {
+        return auditoriaObservacaoRepository.findByEncomendaIdOrderByDataHoraDesc(id)
                 .stream()
                 .map(EncomendaObservacaoAuditoriaDTO::from)
                 .toList();

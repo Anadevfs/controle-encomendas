@@ -1,6 +1,7 @@
 package com.eva.controleencomendas.dto;
 
 import com.eva.controleencomendas.model.Encomenda;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -18,6 +19,7 @@ public record EncomendaResponseDTO(
         String observacao,
         String observacaoAtualizadaPor,
         LocalDateTime observacaoAtualizadaEm,
+        @JsonInclude(JsonInclude.Include.NON_EMPTY)
         List<EncomendaObservacaoAuditoriaDTO> auditoriaObservacoes,
         String codigoRastreio,
         String linkWhatsapp
