@@ -12,6 +12,7 @@ import com.eva.controleencomendas.service.WhatsAppService;
 import com.eva.controleencomendas.dto.DashboardDTO;
 import com.eva.controleencomendas.dto.EncomendaObservacaoAuditoriaDTO;
 import com.eva.controleencomendas.dto.EncomendaResponseDTO;
+import com.eva.controleencomendas.dto.UsuarioResponseDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -41,7 +42,7 @@ public class EncomendaController {
     private static final String ACAO_OBSERVACAO_CRIADA = "OBSERVACAO_CRIADA";
     private static final String ACAO_OBSERVACAO_ALTERADA = "OBSERVACAO_ALTERADA";
     private static final String USUARIO_NAO_IDENTIFICADO = "Usuario nao identificado";
-    private static final Set<String> USUARIOS_AUTORIZADOS_AUDITORIA_OBSERVACOES = Set.of("ana", "veronica");
+    private static final Set<String> USUARIOS_AUTORIZADOS_AUDITORIA_OBSERVACOES = Set.of("veronica");
     private static final ZoneId ZONA_SISTEMA = ZoneId.of("America/Sao_Paulo");
     private static final long MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
@@ -70,8 +71,10 @@ public class EncomendaController {
     @GetMapping
     public List<EncomendaResponseDTO> listarTodas(
             @RequestParam(value = "usuario", required = false) String usuario,
-            @RequestParam(value = "usuarioId", required = false) String usuarioId) {
-        boolean podeVerAuditoria = podeAcessarAuditoriaObservacoes(usuario, usuarioId);
+            @RequestParam(value = "usuarioId", required = false) String usuarioId,
+            @RequestParam(value = "username", required = false) String username,
+            @RequestParam(value = "role", required = false) String role) {
+        boolean podeVerAuditoria = podeAcessarAuditoriaObservacoes(usuario, usuarioId, username, role);
         return encomendaRepository.findAll().stream()
                 .map(encomenda -> EncomendaResponseDTO.from(encomenda, podeVerAuditoria))
                 .toList();
@@ -132,7 +135,7 @@ public class EncomendaController {
             salva.setLinkWhatsapp(link);
         }
 
-        return EncomendaResponseDTO.from(salva, podeAcessarAuditoriaObservacoes(recebidoPorValido, null));
+        return EncomendaResponseDTO.from(salva, podeAcessarAuditoriaObservacoes(recebidoPorValido, null, null, null));
     }
 
     @GetMapping("/dashboard")
@@ -185,7 +188,7 @@ public class EncomendaController {
 
         return EncomendaResponseDTO.from(
                 encomendaRepository.save(encomenda),
-                podeAcessarAuditoriaObservacoes(marcadoEnviadoPorValido, null)
+                podeAcessarAuditoriaObservacoes(marcadoEnviadoPorValido, null, null, null)
         );
     }
 
@@ -205,7 +208,7 @@ public class EncomendaController {
         if (Objects.equals(observacaoAtual, novaObservacao)) {
             return EncomendaResponseDTO.from(
                     encomenda,
-                    podeAcessarAuditoriaObservacoes(body.get("usuario"), body.get("usuarioId"))
+                    podeAcessarAuditoriaObservacoes(body)
             );
         }
 
@@ -227,7 +230,7 @@ public class EncomendaController {
 
         return EncomendaResponseDTO.from(
                 encomendaRepository.save(encomenda),
-                podeAcessarAuditoriaObservacoes(body.get("usuario"), body.get("usuarioId"))
+                podeAcessarAuditoriaObservacoes(body)
         );
     }
 
@@ -236,8 +239,10 @@ public class EncomendaController {
     public List<EncomendaObservacaoAuditoriaDTO> buscarAuditoriaObservacoes(
             @PathVariable Long id,
             @RequestParam(value = "usuario", required = false) String usuario,
-            @RequestParam(value = "usuarioId", required = false) String usuarioId) {
-        if (!podeAcessarAuditoriaObservacoes(usuario, usuarioId)) {
+            @RequestParam(value = "usuarioId", required = false) String usuarioId,
+            @RequestParam(value = "username", required = false) String username,
+            @RequestParam(value = "role", required = false) String role) {
+        if (!podeAcessarAuditoriaObservacoes(usuario, usuarioId, username, role)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuario sem permissao para acessar auditoria de observacoes.");
         }
 
@@ -266,6 +271,8 @@ public class EncomendaController {
             @RequestParam(value = "funcionario", required = false) String funcionario,
             @RequestParam(value = "usuario", required = false) String usuario,
             @RequestParam(value = "usuarioId", required = false) String usuarioId,
+            @RequestParam(value = "username", required = false) String username,
+            @RequestParam(value = "role", required = false) String role,
             @RequestParam(value = "dataInicial", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate dataInicial,
             @RequestParam(value = "dataFinal", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate dataFinal) {
 
@@ -277,7 +284,7 @@ public class EncomendaController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "dataInicial nao pode ser maior que dataFinal.");
         }
 
-        boolean podeVerAuditoria = podeAcessarAuditoriaObservacoes(usuario, usuarioId);
+        boolean podeVerAuditoria = podeAcessarAuditoriaObservacoes(usuario, usuarioId, username, role);
 
         return encomendaRepository.buscarHistorico(
                 normalizarTextoOpcional(termo, 100),
@@ -357,6 +364,14 @@ public class EncomendaController {
     private String resolverUsuarioAuditoria(Map<String, String> body) {
         String usuarioInformado = normalizarTextoOpcional(body.get("usuario"), 120);
         String usuarioId = normalizarTextoOpcional(body.get("usuarioId"), 30);
+        String username = normalizarTextoOpcional(body.get("username"), 120);
+
+        if (username != null) {
+            return usuarioRepository.findByUsername(username)
+                    .map(usuario -> normalizarTextoOpcional(usuario.getNome(), 120))
+                    .orElse(usuarioInformado != null ? usuarioInformado : USUARIO_NAO_IDENTIFICADO);
+        }
+
         if (usuarioId != null) {
             try {
                 Long id = Long.valueOf(usuarioId);
@@ -375,19 +390,45 @@ public class EncomendaController {
         return USUARIO_NAO_IDENTIFICADO;
     }
 
-    private boolean podeAcessarAuditoriaObservacoes(String usuario, String usuarioId) {
+    private boolean podeAcessarAuditoriaObservacoes(Map<String, String> body) {
+        return podeAcessarAuditoriaObservacoes(
+                body.get("usuario"),
+                body.get("usuarioId"),
+                body.get("username"),
+                body.get("role")
+        );
+    }
+
+    private boolean podeAcessarAuditoriaObservacoes(String usuario, String usuarioId, String username, String role) {
+        String usernameValido = normalizarTextoOpcional(username, 120);
+
+        if (usernameValido != null) {
+            return usuarioRepository.findByUsername(usernameValido)
+                    .map(usuarioEncontrado -> UsuarioResponseDTO.podeVerHistoricoObservacoes(
+                            usuarioEncontrado.getNome(),
+                            usuarioEncontrado.getRole()
+                    ))
+                    .orElse(false);
+        }
+
         String usuarioIdValido = normalizarTextoOpcional(usuarioId, 30);
 
         if (usuarioIdValido != null) {
             try {
                 Long id = Long.valueOf(usuarioIdValido);
                 return usuarioRepository.findById(id)
-                        .map(usuarioEncontrado -> primeiroNomeNormalizado(usuarioEncontrado.getNome()))
-                        .filter(USUARIOS_AUTORIZADOS_AUDITORIA_OBSERVACOES::contains)
-                        .isPresent();
+                        .map(usuarioEncontrado -> UsuarioResponseDTO.podeVerHistoricoObservacoes(
+                                usuarioEncontrado.getNome(),
+                                usuarioEncontrado.getRole()
+                        ))
+                        .orElse(false);
             } catch (NumberFormatException ignored) {
                 return false;
             }
+        }
+
+        if (UsuarioResponseDTO.ROLE_ADMIN.equals(UsuarioResponseDTO.normalizarRole(role))) {
+            return true;
         }
 
         String primeiroNome = primeiroNomeNormalizado(usuario);

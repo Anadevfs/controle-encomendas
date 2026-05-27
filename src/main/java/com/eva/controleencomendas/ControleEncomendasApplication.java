@@ -2,6 +2,7 @@ package com.eva.controleencomendas;
 
 import com.eva.controleencomendas.model.Cliente;
 import com.eva.controleencomendas.model.Usuario;
+import com.eva.controleencomendas.dto.UsuarioResponseDTO;
 import com.eva.controleencomendas.repository.ClienteRepository;
 import com.eva.controleencomendas.repository.UsuarioRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -31,6 +32,7 @@ public class ControleEncomendasApplication {
 				admin.setNome("Porteiro Padrao");
 				admin.setUsername("admin");
 				admin.setSenha("123");
+				admin.setRole(UsuarioResponseDTO.ROLE_ADMIN);
 				usuarioRepo.save(admin);
 				System.out.println("USUARIO ADMIN CRIADO");
 			}

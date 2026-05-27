@@ -112,10 +112,15 @@ const getFirstNameKey = (name: string | undefined) =>
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase() ?? "";
 
-const canUserViewObservationHistory = (name: string | undefined) =>
-  OBSERVATION_HISTORY_ALLOWED_USERS.has(getFirstNameKey(name));
+const canUserViewObservationHistory = (user: { name: string; role: string; canViewObservationHistory?: boolean } | null) =>
+  !!user?.canViewObservationHistory ||
+  user?.role === "ROLE_ADMIN" ||
+  OBSERVATION_HISTORY_ALLOWED_USERS.has(getFirstNameKey(user?.name));
 
-const appendCurrentUserParams = (path: string, user: { id: number; name: string } | null) => {
+const appendCurrentUserParams = (
+  path: string,
+  user: { id: number; name: string; email: string; role: string } | null
+) => {
   if (!user) {
     return path;
   }
@@ -124,6 +129,8 @@ const appendCurrentUserParams = (path: string, user: { id: number; name: string 
   const params = new URLSearchParams(queryString);
   params.set("usuario", user.name);
   params.set("usuarioId", String(user.id));
+  params.set("username", user.email);
+  params.set("role", user.role);
 
   return `${basePath}?${params.toString()}`;
 };
@@ -163,7 +170,7 @@ const buildPersistedDescription = (cliente: Cliente) =>
 const Index = () => {
   const { user } = useAuth();
   const employeeName = user?.name ?? "Atendente";
-  const canViewObservationHistory = canUserViewObservationHistory(user?.name);
+  const canViewObservationHistory = canUserViewObservationHistory(user);
   const [packageList, setPackageList] = useState<Package[]>(packages);
   const [selectedClient, setSelectedClient] = useState<Cliente | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState<number | null>(packages[0]?.id ?? null);
@@ -377,10 +384,12 @@ const Index = () => {
     if (pkg.origin === "api" && pkg.backendId) {
       try {
         const updatedFromApi = mapEncomendaToPackage(
-          await apiPatch<ApiEncomenda, { observacao: string; usuario: string; usuarioId?: string }>(`/encomendas/${pkg.backendId}/observacao`, {
+          await apiPatch<ApiEncomenda, { observacao: string; usuario: string; usuarioId?: string; username?: string; role?: string }>(`/encomendas/${pkg.backendId}/observacao`, {
             observacao: observacoes,
             usuario: employeeName,
             usuarioId: user?.id ? String(user.id) : undefined,
+            username: user?.email,
+            role: user?.role,
           })
         );
         const enrichedUpdatedPackage: Package = {

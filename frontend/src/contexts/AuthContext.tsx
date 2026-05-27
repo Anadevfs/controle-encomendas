@@ -8,21 +8,16 @@ export interface Employee {
   email: string;
   role: string;
   initials: string;
+  canViewObservationHistory: boolean;
 }
 
 interface AuthApiUser {
   id: number;
   username: string;
   nome: string;
+  role: string;
+  canViewObservationHistory: boolean;
 }
-
-const roleByUsername: Record<string, string> = {
-  admin: "Administrador",
-  "janaina@eva.com": "Atendente",
-  "veronica@eva.com": "Atendente",
-  "ana@eva.com": "Atendente",
-  "vitor@eva.com": "Atendente",
-};
 
 const getInitials = (name: string) =>
   name
@@ -41,6 +36,18 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 const AUTH_STORAGE_KEY = "eva.auth.user";
+const OBSERVATION_HISTORY_ALLOWED_USERS = new Set(["ana", "veronica"]);
+
+const getFirstNameKey = (name: string | undefined) =>
+  (name ?? "")
+    .trim()
+    .split(/\s+/)[0]
+    ?.normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase() ?? "";
+
+const canViewObservationHistory = (name: string | undefined, role: string | undefined) =>
+  role === "ROLE_ADMIN" || OBSERVATION_HISTORY_ALLOWED_USERS.has(getFirstNameKey(name));
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<Employee | null>(() => {
@@ -55,7 +62,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      return JSON.parse(storedUser) as Employee;
+      const parsedUser = JSON.parse(storedUser) as Employee;
+      return {
+        ...parsedUser,
+        canViewObservationHistory:
+          parsedUser.canViewObservationHistory ?? canViewObservationHistory(parsedUser.name, parsedUser.role),
+      };
     } catch {
       window.localStorage.removeItem(AUTH_STORAGE_KEY);
       return null;
@@ -72,24 +84,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         },
       );
 
-      const normalizedUsername = authUser.username.toLowerCase();
-      setUser({
+      const nextUser = {
         id: authUser.id,
         name: authUser.nome,
         email: authUser.username,
-        role: roleByUsername[normalizedUsername] ?? "Atendente",
+        role: authUser.role,
         initials: getInitials(authUser.nome),
-      });
-      window.localStorage.setItem(
-        AUTH_STORAGE_KEY,
-        JSON.stringify({
-          id: authUser.id,
-          name: authUser.nome,
-          email: authUser.username,
-          role: roleByUsername[normalizedUsername] ?? "Atendente",
-          initials: getInitials(authUser.nome),
-        }),
-      );
+        canViewObservationHistory: authUser.canViewObservationHistory,
+      };
+      setUser(nextUser);
+      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextUser));
       return { success: true };
     } catch (_error) {
       return { success: false, error: "Usuário ou senha inválidos" };

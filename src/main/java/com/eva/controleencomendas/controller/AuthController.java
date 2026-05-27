@@ -1,5 +1,6 @@
 package com.eva.controleencomendas.controller;
 
+import com.eva.controleencomendas.dto.UsuarioResponseDTO;
 import com.eva.controleencomendas.model.Usuario;
 import com.eva.controleencomendas.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,13 +16,14 @@ public class AuthController {
     private UsuarioRepository usuarioRepository;
 
     @PostMapping("/login")
-    public Usuario login(@RequestBody Usuario usuario) {
+    public UsuarioResponseDTO login(@RequestBody Usuario usuario) {
         if (usuario == null || isBlank(usuario.getUsername()) || isBlank(usuario.getSenha())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Usuario e senha sao obrigatorios.");
         }
 
-        return usuarioRepository.findByUsernameAndSenha(usuario.getUsername(), usuario.getSenha())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário ou senha inválidos!"));
+        Usuario usuarioAutenticado = usuarioRepository.findByUsernameAndSenha(usuario.getUsername(), usuario.getSenha())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario ou senha invalidos!"));
+        return UsuarioResponseDTO.from(usuarioAutenticado);
     }
 
     private boolean isBlank(String value) {
