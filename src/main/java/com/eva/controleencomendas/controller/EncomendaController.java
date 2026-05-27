@@ -3,6 +3,7 @@ package com.eva.controleencomendas.controller;
 import com.eva.controleencomendas.model.Encomenda;
 import com.eva.controleencomendas.model.Cliente;
 import com.eva.controleencomendas.model.Atividade;
+import com.eva.controleencomendas.model.EncomendaObservacaoAuditoria;
 import com.eva.controleencomendas.repository.EncomendaRepository;
 import com.eva.controleencomendas.repository.ClienteRepository;
 import com.eva.controleencomendas.repository.AtividadeRepository;
@@ -18,6 +19,7 @@ import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/encomendas")
@@ -72,9 +74,9 @@ public class EncomendaController {
         encomenda.setDescricao(descricao);
         encomenda.setUrlFoto("/uploads/" + nomeArquivo);
         encomenda.setStatus("Pendente");
-        encomenda.setObservacao(resolveObservacao(observacao, observacoes));
         encomenda.setRecebidoPor(recebidoPor);
         encomenda.setMarcadoEnviadoPor(null);
+        aplicarObservacaoSeAlterada(encomenda, resolveObservacao(observacao, observacoes), recebidoPor);
 
         Encomenda salva = encomendaRepository.save(encomenda);
 
@@ -113,7 +115,11 @@ public class EncomendaController {
             atividadeRepository.save(new Atividade(mensagemLog, "SUCESSO"));
         }
         if (containsObservacao(body)) {
-            encomenda.setObservacao(resolveObservacao(body.get("observacao"), body.get("observacoes")));
+            aplicarObservacaoSeAlterada(
+                    encomenda,
+                    resolveObservacao(body.get("observacao"), body.get("observacoes")),
+                    resolveUsuarioObservacao(body)
+            );
         }
 
         return encomendaRepository.save(encomenda);
@@ -124,7 +130,11 @@ public class EncomendaController {
         Encomenda encomenda = encomendaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Encomenda nÃ£o encontrada"));
 
-        encomenda.setObservacao(resolveObservacao(body.get("observacao"), body.get("observacoes")));
+        aplicarObservacaoSeAlterada(
+                encomenda,
+                resolveObservacao(body.get("observacao"), body.get("observacoes")),
+                resolveUsuarioObservacao(body)
+        );
 
         return encomendaRepository.save(encomenda);
     }
@@ -144,7 +154,7 @@ public class EncomendaController {
         }
         String observacaoNormalizada = resolveObservacao(observacao, observacoes);
         if (observacaoNormalizada != null) {
-            encomenda.setObservacao(observacaoNormalizada);
+            aplicarObservacaoSeAlterada(encomenda, observacaoNormalizada, marcadoEnviadoPor);
         }
 
         // REGISTRA NO LOG: Entrega
@@ -198,6 +208,68 @@ public class EncomendaController {
 
     private boolean containsObservacao(Map<String, String> body) {
         return body.containsKey("observacao") || body.containsKey("observacoes");
+    }
+
+    private String resolveUsuarioObservacao(Map<String, String> body) {
+        return primeiroTextoPreenchido(
+                body.get("usuario"),
+                body.get("funcionario"),
+                body.get("observacaoAtualizadaPor"),
+                body.get("recebidoPor"),
+                body.get("marcadoEnviadoPor")
+        );
+    }
+
+    private void aplicarObservacaoSeAlterada(Encomenda encomenda, String novaObservacao, String usuarioInformado) {
+        String valorAntigo = normalizeObservacao(encomenda.getObservacao());
+        String valorNovo = normalizeObservacao(novaObservacao);
+
+        if (Objects.equals(valorAntigo, valorNovo)) {
+            return;
+        }
+
+        LocalDateTime agora = LocalDateTime.now();
+        String usuario = primeiroTextoPreenchido(
+                usuarioInformado,
+                encomenda.getObservacaoAtualizadaPor(),
+                encomenda.getRecebidoPor(),
+                encomenda.getMarcadoEnviadoPor(),
+                "Sistema"
+        );
+
+        encomenda.setObservacao(valorNovo);
+        encomenda.setObservacaoAtualizadaPor(usuario);
+        encomenda.setObservacaoAtualizadaEm(agora);
+
+        EncomendaObservacaoAuditoria auditoria = new EncomendaObservacaoAuditoria();
+        auditoria.setEncomenda(encomenda);
+        auditoria.setUsuario(usuario);
+        auditoria.setValorAntigo(valorAntigo);
+        auditoria.setValorNovo(valorNovo);
+        auditoria.setDataHora(agora);
+        auditoria.setAcao(valorAntigo == null
+                ? EncomendaObservacaoAuditoria.AcaoObservacao.OBSERVACAO_CRIADA
+                : EncomendaObservacaoAuditoria.AcaoObservacao.OBSERVACAO_ALTERADA);
+
+        encomenda.getAuditoriaObservacoes().add(auditoria);
+    }
+
+    private String normalizeObservacao(String observacao) {
+        if (observacao == null || observacao.isBlank()) {
+            return null;
+        }
+
+        return observacao.trim();
+    }
+
+    private String primeiroTextoPreenchido(String... valores) {
+        for (String valor : valores) {
+            if (valor != null && !valor.isBlank()) {
+                return valor.trim();
+            }
+        }
+
+        return "Sistema";
     }
 
     private void preencherDataEntregaSeNecessario(Encomenda encomenda, String status) {

@@ -2,6 +2,8 @@ package com.eva.controleencomendas.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 public class Encomenda {
@@ -21,8 +23,14 @@ public class Encomenda {
     private String urlFoto;
     @Column(columnDefinition = "TEXT")
     private String observacao;
+    private String observacaoAtualizadaPor;
+    private LocalDateTime observacaoAtualizadaEm;
     private String recebidoPor;
     private String marcadoEnviadoPor;
+
+    @OneToMany(mappedBy = "encomenda", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OrderBy("dataHora ASC")
+    private List<EncomendaObservacaoAuditoria> auditoriaObservacoes = new ArrayList<>();
 
     // maquininha de Bip
     private String codigoRastreio;
@@ -52,6 +60,10 @@ public class Encomenda {
     public void setUrlFoto(String urlFoto) { this.urlFoto = urlFoto; }
     public String getObservacao() { return observacao; }
     public void setObservacao(String observacao) { this.observacao = observacao; }
+    public String getObservacaoAtualizadaPor() { return observacaoAtualizadaPor; }
+    public void setObservacaoAtualizadaPor(String observacaoAtualizadaPor) { this.observacaoAtualizadaPor = observacaoAtualizadaPor; }
+    public LocalDateTime getObservacaoAtualizadaEm() { return observacaoAtualizadaEm; }
+    public void setObservacaoAtualizadaEm(LocalDateTime observacaoAtualizadaEm) { this.observacaoAtualizadaEm = observacaoAtualizadaEm; }
     public String getRecebidoPor() { return recebidoPor; }
     public void setRecebidoPor(String recebidoPor) { this.recebidoPor = recebidoPor; }
     public String getMarcadoEnviadoPor() { return marcadoEnviadoPor; }
@@ -60,4 +72,6 @@ public class Encomenda {
     public void setLinkWhatsapp(String linkWhatsapp) { this.linkWhatsapp = linkWhatsapp; }
     public String getCodigoRastreio() { return codigoRastreio; }
     public void setCodigoRastreio(String codigoRastreio) { this.codigoRastreio = codigoRastreio; }
+    public List<EncomendaObservacaoAuditoria> getAuditoriaObservacoes() { return auditoriaObservacoes; }
+    public void setAuditoriaObservacoes(List<EncomendaObservacaoAuditoria> auditoriaObservacoes) { this.auditoriaObservacoes = auditoriaObservacoes; }
 }

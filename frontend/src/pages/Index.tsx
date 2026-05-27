@@ -7,7 +7,7 @@ import MetricCard from "@/components/MetricCard";
 import PackageTable from "@/components/PackageTable";
 import PackageDetail from "@/components/PackageDetail";
 import RecentEvents from "@/components/RecentEvents";
-import { packages, Package } from "@/data/mockData";
+import { packages, Package, PackageObservationAudit } from "@/data/mockData";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { apiDelete, apiGet, apiPatch, apiPostForm } from "@/lib/api";
@@ -27,6 +27,10 @@ interface ApiEncomenda {
   dataRecebimento: string;
   dataEntrega: string | null;
   urlFoto: string | null;
+  observacao: string | null;
+  observacaoAtualizadaPor: string | null;
+  observacaoAtualizadaEm: string | null;
+  auditoriaObservacoes: PackageObservationAudit[] | null;
   recebidoPor: string | null;
   marcadoEnviadoPor: string | null;
   cliente: {
@@ -105,6 +109,10 @@ const mapEncomendaToPackage = (encomenda: ApiEncomenda): Package => ({
   descricao: encomenda.descricao || "Encomenda cadastrada na API.",
   recebidoPor: encomenda.recebidoPor || "Nao informado",
   whatsapp: encomenda.cliente.whatsapp || "",
+  observacao: encomenda.observacao || "",
+  observacaoAtualizadaPor: encomenda.observacaoAtualizadaPor || undefined,
+  observacaoAtualizadaEm: encomenda.observacaoAtualizadaEm || undefined,
+  auditoriaObservacoes: encomenda.auditoriaObservacoes ?? [],
   marcadoEnviadoPor: encomenda.marcadoEnviadoPor || undefined,
   textoAuxiliar: `Dados restaurados da API para a encomenda ${encomenda.id}.`,
 });
@@ -327,6 +335,84 @@ const Index = () => {
     });
   };
 
+  const handleSaveObservation = async (pkg: Package, observacao: string) => {
+    if (pkg.origin === "api" && pkg.backendId) {
+      try {
+        const updatedFromApi = mapEncomendaToPackage(
+          await apiPatch<ApiEncomenda, { observacao: string; usuario: string }>(
+            `/encomendas/${pkg.backendId}/observacao`,
+            {
+              observacao,
+              usuario: employeeName,
+            }
+          )
+        );
+        const enrichedUpdatedPackage: Package = {
+          ...updatedFromApi,
+          funcionario: pkg.funcionario || updatedFromApi.funcionario,
+          recebidoPor: pkg.recebidoPor || updatedFromApi.recebidoPor,
+          whatsapp: pkg.whatsapp || updatedFromApi.whatsapp,
+          codigoRastreio: pkg.codigoRastreio,
+          marcadoEnviadoPor: pkg.marcadoEnviadoPor || updatedFromApi.marcadoEnviadoPor,
+          textoAuxiliar: `Observacao salva por ${employeeName} e persistida na API.`,
+        };
+
+        setPackageList((currentPackages) =>
+          currentPackages.map((currentPackage) =>
+            currentPackage.id === enrichedUpdatedPackage.id ? enrichedUpdatedPackage : currentPackage
+          )
+        );
+        setSelected(enrichedUpdatedPackage);
+
+        toast({
+          title: "Observacao salva",
+          description: `Observacao de ${enrichedUpdatedPackage.cliente} foi atualizada.`,
+        });
+        return;
+      } catch {
+        toast({
+          title: "Erro ao salvar observacao",
+          description: "Nao foi possivel persistir a observacao desta encomenda.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    const now = new Date().toISOString();
+    const previousObservation = pkg.observacao?.trim() || null;
+    const nextObservation = observacao.trim() || null;
+    const updatedPackage: Package = {
+      ...pkg,
+      observacao: nextObservation || "",
+      observacaoAtualizadaPor: employeeName,
+      observacaoAtualizadaEm: now,
+      auditoriaObservacoes: [
+        ...(pkg.auditoriaObservacoes ?? []),
+        {
+          usuario: employeeName,
+          valorAntigo: previousObservation,
+          valorNovo: nextObservation,
+          dataHora: now,
+          acao: previousObservation ? "OBSERVACAO_ALTERADA" : "OBSERVACAO_CRIADA",
+        },
+      ],
+      textoAuxiliar: `Observacao salva por ${employeeName}.`,
+    };
+
+    setPackageList((currentPackages) =>
+      currentPackages.map((currentPackage) =>
+        currentPackage.id === updatedPackage.id ? updatedPackage : currentPackage
+      )
+    );
+    setSelected(updatedPackage);
+
+    toast({
+      title: "Observacao salva",
+      description: `Observacao de ${updatedPackage.cliente} foi atualizada no front.`,
+    });
+  };
+
   const handleDeletePackage = (pkg: Package) => {
     const shouldDelete = window.confirm("Tem certeza que deseja excluir esta encomenda?");
 
@@ -411,6 +497,7 @@ const Index = () => {
               pkg={selected}
               onMarkAsSent={handleMarkAsSent}
               onSaveTrackingCode={handleSaveTrackingCode}
+              onSaveObservation={handleSaveObservation}
             />
           </div>
         </div>

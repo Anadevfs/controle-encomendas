@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
-import { Package } from "@/data/mockData";
-import { Camera, CheckCircle2, RefreshCw, User, Building2, Clock, Info, UserCheck, ImageIcon, Send, Phone, ScanLine, type LucideIcon } from "lucide-react";
+import { Package, PackageObservationAudit } from "@/data/mockData";
+import { Camera, CheckCircle2, RefreshCw, User, Building2, Clock, Info, UserCheck, ImageIcon, Send, Phone, ScanLine, History, Save, type LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { Input } from "@/components/ui/input";
@@ -16,19 +16,26 @@ interface PackageDetailProps {
   pkg: Package | null;
   onMarkAsSent: (pkg: Package) => void;
   onSaveTrackingCode: (pkg: Package, codigoRastreio: string) => void;
+  onSaveObservation: (pkg: Package, observacao: string) => void;
 }
 
-const PackageDetail = ({ pkg, onMarkAsSent, onSaveTrackingCode }: PackageDetailProps) => {
+const PackageDetail = ({ pkg, onMarkAsSent, onSaveTrackingCode, onSaveObservation }: PackageDetailProps) => {
   const [trackingInput, setTrackingInput] = useState("");
+  const [observationInput, setObservationInput] = useState("");
+  const [showObservationHistory, setShowObservationHistory] = useState(false);
   const scannerInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!pkg) {
       setTrackingInput("");
+      setObservationInput("");
+      setShowObservationHistory(false);
       return;
     }
 
     setTrackingInput(pkg.codigoRastreio ?? "");
+    setObservationInput(pkg.observacao ?? "");
+    setShowObservationHistory(false);
     scannerInputRef.current?.focus();
   }, [pkg]);
 
@@ -46,6 +53,8 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveTrackingCode }: PackageDetailP
   const cfg = statusConfig[pkg.status];
   const codigoRastreioSalvo = pkg.codigoRastreio?.trim() ?? "";
   const receivedAtLabel = pkg.horario.split(" / ")[0];
+  const observacaoSalva = pkg.observacao?.trim() ?? "";
+  const auditoriaObservacoes = pkg.auditoriaObservacoes ?? [];
 
   const handleTrackingSubmit = () => {
     const normalizedCode = trackingInput.trim();
@@ -64,6 +73,16 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveTrackingCode }: PackageDetailP
     onSaveTrackingCode(pkg, normalizedCode);
     setTrackingInput("");
     scannerInputRef.current?.focus();
+  };
+
+  const handleObservationSubmit = () => {
+    const normalizedObservation = observationInput.trim();
+
+    if (normalizedObservation === observacaoSalva) {
+      return;
+    }
+
+    onSaveObservation(pkg, normalizedObservation);
   };
 
   return (
@@ -153,12 +172,69 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveTrackingCode }: PackageDetailP
             Rastreabilidade
           </p>
           <div className="space-y-2">
-            <TraceItem icon={UserCheck} label="Recebida por" value={pkg.recebidoPor} />
+            <TraceItem icon={UserCheck} label="Comunicada por" value={pkg.recebidoPor} />
+            <div className="rounded-lg bg-surface-2 px-3 py-3">
+              <div className="mb-2 flex items-center gap-2.5">
+                <Info className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                <span className="text-xs text-muted-foreground">Observacao:</span>
+              </div>
+              <textarea
+                value={observationInput}
+                onChange={(event) => setObservationInput(event.target.value)}
+                rows={3}
+                placeholder="Registrar observacao da encomenda"
+                className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <div className="mt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleObservationSubmit}
+                  disabled={observationInput.trim() === observacaoSalva}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-eva-red-dark disabled:cursor-default disabled:opacity-50"
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  Salvar observacao
+                </button>
+              </div>
+            </div>
+            {pkg.observacaoAtualizadaPor && (
+              <TraceItem
+                icon={Save}
+                label="Salva por"
+                value={formatSavedBy(pkg.observacaoAtualizadaPor, pkg.observacaoAtualizadaEm)}
+              />
+            )}
+            {auditoriaObservacoes.length > 0 && (
+              <div className="rounded-lg bg-surface-2 px-3 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <History className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                    <span className="text-xs font-semibold text-foreground">Historico de observacoes</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowObservationHistory((current) => !current)}
+                    className="text-xs font-semibold text-primary transition-colors hover:text-eva-red-dark"
+                  >
+                    {showObservationHistory ? "Ocultar historico" : "Ver historico"}
+                  </button>
+                </div>
+                {showObservationHistory && (
+                  <ul className="mt-3 space-y-2 border-t border-border pt-3">
+                    {auditoriaObservacoes.map((audit, index) => (
+                      <li key={`${audit.dataHora}-${index}`} className="text-xs leading-relaxed text-muted-foreground">
+                        {formatObservationAudit(audit)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
             {pkg.fotoEnviadaPor && (
               <TraceItem icon={ImageIcon} label="Foto enviada por" value={pkg.fotoEnviadaPor} />
             )}
             {pkg.marcadoEnviadoPor && (
-              <TraceItem icon={Send} label="Marcada enviada por" value={pkg.marcadoEnviadoPor} />
+              <TraceItem icon={Send} label="Entregue por" value={pkg.marcadoEnviadoPor} />
             )}
           </div>
         </div>
@@ -220,5 +296,36 @@ const TraceItem = ({ icon: Icon, label, value }: { icon: LucideIcon; label: stri
     <span className="text-xs font-semibold text-foreground">{value}</span>
   </div>
 );
+
+const formatAuditDateTime = (value: string) => {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "--/-- --:--";
+  }
+
+  return date.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  });
+};
+
+const formatSavedBy = (usuario: string, dataHora?: string) =>
+  dataHora ? `${usuario} em ${formatAuditDateTime(dataHora)}` : usuario;
+
+const quoteValue = (value: string | null) => `"${value || ""}"`;
+
+const formatObservationAudit = (audit: PackageObservationAudit) => {
+  const dateTime = formatAuditDateTime(audit.dataHora);
+
+  if (audit.acao === "OBSERVACAO_CRIADA") {
+    return `${dateTime} · ${audit.usuario} criou observacao: ${quoteValue(audit.valorNovo)}`;
+  }
+
+  return `${dateTime} · ${audit.usuario} alterou de ${quoteValue(audit.valorAntigo)} para ${quoteValue(audit.valorNovo)}`;
+};
 
 export default PackageDetail;
