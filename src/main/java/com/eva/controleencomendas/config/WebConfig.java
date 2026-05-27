@@ -37,11 +37,18 @@ public class WebConfig implements WebMvcConfigurer {
     }
 
     private HandlerInterceptor securityHeadersInterceptor() {
-        return (request, response, handler) -> {
-            response.setHeader("X-Content-Type-Options", "nosniff");
-            response.setHeader("X-Frame-Options", "DENY");
-            response.setHeader("Referrer-Policy", "no-referrer");
-            return true;
+        return new HandlerInterceptor() {
+            @Override
+            public boolean preHandle(
+                    jakarta.servlet.http.HttpServletRequest request,
+                    jakarta.servlet.http.HttpServletResponse response,
+                    Object handler
+            ) {
+                response.setHeader("X-Content-Type-Options", "nosniff");
+                response.setHeader("X-Frame-Options", "DENY");
+                response.setHeader("Referrer-Policy", "no-referrer");
+                return true;
+            }
         };
     }
 
