@@ -30,7 +30,7 @@ interface ApiEncomenda {
   observacao: string | null;
   observacaoAtualizadaPor: string | null;
   observacaoAtualizadaEm: string | null;
-  auditoriaObservacoes: PackageObservationAudit[] | null;
+  auditoriaObservacoes?: PackageObservationAudit[] | null;
   recebidoPor: string | null;
   marcadoEnviadoPor: string | null;
   cliente: {
@@ -127,9 +127,22 @@ const sortPackages = (items: Package[]) =>
 const buildPersistedDescription = (cliente: Cliente) =>
   `Encomenda cadastrada para ${cliente.clientName} - ${cliente.companyName || "Empresa nao informada"}.`;
 
+const normalizeEmployeeName = (name: string) =>
+  name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+const canAccessObservationHistory = (name: string) => {
+  const normalizedName = normalizeEmployeeName(name);
+  return normalizedName === "ana" || normalizedName === "veronica";
+};
+
 const Index = () => {
   const { user } = useAuth();
   const employeeName = user?.name ?? "Atendente";
+  const canViewObservationHistory = canAccessObservationHistory(employeeName);
   const [packageList, setPackageList] = useState<Package[]>(packages);
   const [selectedClient, setSelectedClient] = useState<Cliente | null>(null);
   const [selected, setSelected] = useState<Package | null>(packages[0]);
@@ -413,6 +426,29 @@ const Index = () => {
     });
   };
 
+  const handleLoadObservationHistory = async (pkg: Package) => {
+    if (!canViewObservationHistory) {
+      return [];
+    }
+
+    if (!(pkg.origin === "api" && pkg.backendId)) {
+      return pkg.auditoriaObservacoes ?? [];
+    }
+
+    try {
+      return await apiGet<PackageObservationAudit[]>(
+        `/encomendas/${pkg.backendId}/observacao/auditoria?usuario=${encodeURIComponent(employeeName)}`
+      );
+    } catch {
+      toast({
+        title: "Historico indisponivel",
+        description: "Nao foi possivel carregar o historico de observacoes.",
+        variant: "destructive",
+      });
+      return [];
+    }
+  };
+
   const handleDeletePackage = (pkg: Package) => {
     const shouldDelete = window.confirm("Tem certeza que deseja excluir esta encomenda?");
 
@@ -498,6 +534,8 @@ const Index = () => {
               onMarkAsSent={handleMarkAsSent}
               onSaveTrackingCode={handleSaveTrackingCode}
               onSaveObservation={handleSaveObservation}
+              canViewObservationHistory={canViewObservationHistory}
+              onLoadObservationHistory={handleLoadObservationHistory}
             />
           </div>
         </div>

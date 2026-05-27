@@ -17,12 +17,23 @@ interface PackageDetailProps {
   onMarkAsSent: (pkg: Package) => void;
   onSaveTrackingCode: (pkg: Package, codigoRastreio: string) => void;
   onSaveObservation: (pkg: Package, observacao: string) => void;
+  canViewObservationHistory: boolean;
+  onLoadObservationHistory: (pkg: Package) => Promise<PackageObservationAudit[]>;
 }
 
-const PackageDetail = ({ pkg, onMarkAsSent, onSaveTrackingCode, onSaveObservation }: PackageDetailProps) => {
+const PackageDetail = ({
+  pkg,
+  onMarkAsSent,
+  onSaveTrackingCode,
+  onSaveObservation,
+  canViewObservationHistory,
+  onLoadObservationHistory,
+}: PackageDetailProps) => {
   const [trackingInput, setTrackingInput] = useState("");
   const [observationInput, setObservationInput] = useState("");
   const [showObservationHistory, setShowObservationHistory] = useState(false);
+  const [isLoadingObservationHistory, setIsLoadingObservationHistory] = useState(false);
+  const [observationAudits, setObservationAudits] = useState<PackageObservationAudit[]>([]);
   const scannerInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -30,14 +41,16 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveTrackingCode, onSaveObservatio
       setTrackingInput("");
       setObservationInput("");
       setShowObservationHistory(false);
+      setObservationAudits([]);
       return;
     }
 
     setTrackingInput(pkg.codigoRastreio ?? "");
     setObservationInput(pkg.observacao ?? "");
     setShowObservationHistory(false);
+    setObservationAudits(pkg.auditoriaObservacoes ?? []);
     scannerInputRef.current?.focus();
-  }, [pkg]);
+  }, [pkg?.id]);
 
   if (!pkg) {
     return (
@@ -54,7 +67,6 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveTrackingCode, onSaveObservatio
   const codigoRastreioSalvo = pkg.codigoRastreio?.trim() ?? "";
   const receivedAtLabel = pkg.horario.split(" / ")[0];
   const observacaoSalva = pkg.observacao?.trim() ?? "";
-  const auditoriaObservacoes = pkg.auditoriaObservacoes ?? [];
 
   const handleTrackingSubmit = () => {
     const normalizedCode = trackingInput.trim();
@@ -83,6 +95,19 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveTrackingCode, onSaveObservatio
     }
 
     onSaveObservation(pkg, normalizedObservation);
+  };
+
+  const handleObservationHistoryToggle = async () => {
+    if (showObservationHistory) {
+      setShowObservationHistory(false);
+      return;
+    }
+
+    setIsLoadingObservationHistory(true);
+    const audits = await onLoadObservationHistory(pkg);
+    setObservationAudits(audits);
+    setShowObservationHistory(true);
+    setIsLoadingObservationHistory(false);
   };
 
   return (
@@ -204,7 +229,7 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveTrackingCode, onSaveObservatio
                 value={formatSavedBy(pkg.observacaoAtualizadaPor, pkg.observacaoAtualizadaEm)}
               />
             )}
-            {auditoriaObservacoes.length > 0 && (
+            {canViewObservationHistory && (
               <div className="rounded-lg bg-surface-2 px-3 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
@@ -213,15 +238,16 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveTrackingCode, onSaveObservatio
                   </div>
                   <button
                     type="button"
-                    onClick={() => setShowObservationHistory((current) => !current)}
+                    onClick={handleObservationHistoryToggle}
+                    disabled={isLoadingObservationHistory}
                     className="text-xs font-semibold text-primary transition-colors hover:text-eva-red-dark"
                   >
-                    {showObservationHistory ? "Ocultar historico" : "Ver historico"}
+                    {showObservationHistory ? "Ocultar historico" : isLoadingObservationHistory ? "Carregando" : "Ver historico"}
                   </button>
                 </div>
-                {showObservationHistory && (
+                {showObservationHistory && observationAudits.length > 0 && (
                   <ul className="mt-3 space-y-2 border-t border-border pt-3">
-                    {auditoriaObservacoes.map((audit, index) => (
+                    {observationAudits.map((audit, index) => (
                       <li key={`${audit.dataHora}-${index}`} className="text-xs leading-relaxed text-muted-foreground">
                         {formatObservationAudit(audit)}
                       </li>

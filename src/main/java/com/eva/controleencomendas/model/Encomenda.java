@@ -1,5 +1,6 @@
 package com.eva.controleencomendas.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -72,6 +73,7 @@ public class Encomenda {
     public void setLinkWhatsapp(String linkWhatsapp) { this.linkWhatsapp = linkWhatsapp; }
     public String getCodigoRastreio() { return codigoRastreio; }
     public void setCodigoRastreio(String codigoRastreio) { this.codigoRastreio = codigoRastreio; }
+    @JsonIgnore
     public List<EncomendaObservacaoAuditoria> getAuditoriaObservacoes() { return auditoriaObservacoes; }
     public void setAuditoriaObservacoes(List<EncomendaObservacaoAuditoria> auditoriaObservacoes) { this.auditoriaObservacoes = auditoriaObservacoes; }
 }
