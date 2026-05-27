@@ -404,7 +404,7 @@ public class EncomendaController {
                     .map(usuarioEncontrado -> UsuarioResponseDTO.podeVerHistoricoObservacoes(
                             usuarioEncontrado.getRole()
                     ))
-                    .orElse(false);
+                    .orElse(UsuarioResponseDTO.podeVerHistoricoObservacoes(role));
         }
 
         String usuarioIdValido = normalizarTextoOpcional(usuarioId, 30);
@@ -416,13 +416,13 @@ public class EncomendaController {
                         .map(usuarioEncontrado -> UsuarioResponseDTO.podeVerHistoricoObservacoes(
                                 usuarioEncontrado.getRole()
                         ))
-                        .orElse(false);
+                        .orElse(UsuarioResponseDTO.podeVerHistoricoObservacoes(role));
             } catch (NumberFormatException ignored) {
-                return false;
+                return UsuarioResponseDTO.podeVerHistoricoObservacoes(role);
             }
         }
 
-        return false;
+        return UsuarioResponseDTO.podeVerHistoricoObservacoes(role);
     }
 
     private String validarStatus(String status) {

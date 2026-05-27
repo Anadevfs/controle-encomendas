@@ -62,6 +62,16 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveObservation, canViewObservatio
     setObservationInput(pkg.observacoes ?? "");
   }, [pkg?.id, pkg?.observacoes]);
 
+  useEffect(() => {
+    if (!pkg) {
+      return;
+    }
+
+    console.log("auditoria", pkg.auditoriaObservacoes ?? []);
+    console.log("tamanho auditoria", pkg.auditoriaObservacoes?.length ?? 0);
+    console.log("pode ver historico observacoes", canViewObservationHistory);
+  }, [pkg?.id, pkg?.auditoriaObservacoes, canViewObservationHistory]);
+
   if (!pkg) {
     return (
       <div className="eva-card-elevated rounded-2xl p-6 flex flex-col items-center justify-center min-h-[500px]">

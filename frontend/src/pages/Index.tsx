@@ -209,6 +209,18 @@ const Index = () => {
         }
 
         const mappedPackages = sortPackages(apiPackages.map(mapEncomendaToPackage));
+        console.log("role usuario logado", user?.role, {
+          isAdmin: user?.isAdmin,
+          canViewObservationHistory,
+        });
+        console.log(
+          "auditoriaObservacoes recebidas",
+          mappedPackages.map((pkg) => ({
+            id: pkg.id,
+            tamanho: pkg.auditoriaObservacoes?.length ?? 0,
+            auditoria: pkg.auditoriaObservacoes ?? [],
+          }))
+        );
         setPackageList((currentPackages) => mergeFrontendFields(currentPackages, mappedPackages));
         setSelectedPackageId((currentSelectedId) => {
           if (currentSelectedId && mappedPackages.some((pkg) => pkg.id === currentSelectedId)) {
@@ -238,7 +250,7 @@ const Index = () => {
         clearInterval(pollingId);
       }
     };
-  }, [user]);
+  }, [user, canViewObservationHistory]);
 
   const handleSelectPackage = (pkg: Package) => {
     setSelectedPackageId(pkg.id);

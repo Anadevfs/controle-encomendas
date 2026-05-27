@@ -70,11 +70,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const parsedUser = JSON.parse(storedUser) as Employee;
       const isAdmin = parsedUser.isAdmin ?? normalizeRole(parsedUser.role) === "ROLE_ADMIN";
       const canViewHistory = isAdmin || parsedUser.canViewHistory === true;
+      const canViewObservationHistoryValue =
+        isAdmin || parsedUser.canViewObservationHistory === true || parsedUser.canViewHistory === true;
       return {
         ...parsedUser,
         isAdmin,
         canViewHistory,
-        canViewObservationHistory: canViewHistory,
+        canViewObservationHistory: canViewObservationHistoryValue,
       };
     } catch {
       window.localStorage.removeItem(AUTH_STORAGE_KEY);
