@@ -127,22 +127,11 @@ const sortPackages = (items: Package[]) =>
 const buildPersistedDescription = (cliente: Cliente) =>
   `Encomenda cadastrada para ${cliente.clientName} - ${cliente.companyName || "Empresa nao informada"}.`;
 
-const normalizeEmployeeName = (name: string) =>
-  name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase();
-
-const canAccessObservationHistory = (name: string) => {
-  const normalizedName = normalizeEmployeeName(name);
-  return normalizedName === "ana" || normalizedName === "veronica";
-};
-
 const Index = () => {
   const { user } = useAuth();
   const employeeName = user?.name ?? "Atendente";
-  const canViewObservationHistory = canAccessObservationHistory(employeeName);
+  const canViewObservationHistory =
+    user?.role === "ROLE_ADMIN" || user?.isAdmin === true || user?.canViewHistory === true;
   const [packageList, setPackageList] = useState<Package[]>(packages);
   const [selectedClient, setSelectedClient] = useState<Cliente | null>(null);
   const [selected, setSelected] = useState<Package | null>(packages[0]);
@@ -437,7 +426,7 @@ const Index = () => {
 
     try {
       return await apiGet<PackageObservationAudit[]>(
-        `/encomendas/${pkg.backendId}/observacao/auditoria?usuario=${encodeURIComponent(employeeName)}`
+        `/encomendas/${pkg.backendId}/observacao/auditoria?usuario=${encodeURIComponent(user?.email ?? "")}`
       );
     } catch {
       toast({

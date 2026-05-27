@@ -131,7 +131,7 @@ const Login = () => {
                   type="button"
                   onClick={() => {
                     setEmail(employeeUser);
-                    setPassword("1958");
+                    setPassword(employeeUser === "ana@eva.com" ? "1520" : "1958");
                   }}
                   className="text-[11px] text-primary hover:bg-eva-red-light rounded-lg py-1.5 px-2 transition-colors font-medium"
                 >

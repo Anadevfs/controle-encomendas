@@ -8,6 +8,7 @@ import com.eva.controleencomendas.repository.EncomendaRepository;
 import com.eva.controleencomendas.repository.ClienteRepository;
 import com.eva.controleencomendas.repository.AtividadeRepository;
 import com.eva.controleencomendas.repository.EncomendaObservacaoAuditoriaRepository;
+import com.eva.controleencomendas.repository.UsuarioRepository;
 import com.eva.controleencomendas.service.WhatsAppService;
 import com.eva.controleencomendas.dto.DashboardDTO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +19,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.*;
-import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +39,9 @@ public class EncomendaController {
 
     @Autowired
     private EncomendaObservacaoAuditoriaRepository observacaoAuditoriaRepository;
+
+    @Autowired
+    private UsuarioRepository usuarioRepository;
 
     @Autowired
     private WhatsAppService whatsAppService;
@@ -294,18 +297,16 @@ public class EncomendaController {
     }
 
     private boolean podeAcessarAuditoriaObservacoes(String usuario) {
-        String usuarioNormalizado = normalizeUsuario(usuario);
-        return "ana".equals(usuarioNormalizado) || "veronica".equals(usuarioNormalizado);
-    }
-
-    private String normalizeUsuario(String usuario) {
         if (usuario == null || usuario.isBlank()) {
-            return "";
+            return false;
         }
 
-        String semAcentos = Normalizer.normalize(usuario.trim(), Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", "");
-        return semAcentos.toLowerCase();
+        String usuarioNormalizado = usuario.trim().toLowerCase();
+
+        return usuarioRepository.findByUsername(usuarioNormalizado)
+                .or(() -> usuarioRepository.findByNomeIgnoreCase(usuario.trim()))
+                .map(usuarioEncontrado -> "ROLE_ADMIN".equals(usuarioEncontrado.getRole()))
+                .orElse(false);
     }
 
     private void preencherDataEntregaSeNecessario(Encomenda encomenda, String status) {

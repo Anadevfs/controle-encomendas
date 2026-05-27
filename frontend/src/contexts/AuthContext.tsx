@@ -7,6 +7,8 @@ export interface Employee {
   name: string;
   email: string;
   role: string;
+  isAdmin: boolean;
+  canViewHistory: boolean;
   initials: string;
 }
 
@@ -14,15 +16,10 @@ interface AuthApiUser {
   id: number;
   username: string;
   nome: string;
+  role: string;
+  isAdmin: boolean;
+  canViewHistory: boolean;
 }
-
-const roleByUsername: Record<string, string> = {
-  admin: "Administrador",
-  "janaina@eva.com": "Atendente",
-  "veronica@eva.com": "Atendente",
-  "ana@eva.com": "Atendente",
-  "vitor@eva.com": "Atendente",
-};
 
 const getInitials = (name: string) =>
   name
@@ -72,24 +69,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         },
       );
 
-      const normalizedUsername = authUser.username.toLowerCase();
-      setUser({
+      const authenticatedUser = {
         id: authUser.id,
         name: authUser.nome,
         email: authUser.username,
-        role: roleByUsername[normalizedUsername] ?? "Atendente",
+        role: authUser.role,
+        isAdmin: authUser.isAdmin,
+        canViewHistory: authUser.canViewHistory,
         initials: getInitials(authUser.nome),
-      });
-      window.localStorage.setItem(
-        AUTH_STORAGE_KEY,
-        JSON.stringify({
-          id: authUser.id,
-          name: authUser.nome,
-          email: authUser.username,
-          role: roleByUsername[normalizedUsername] ?? "Atendente",
-          initials: getInitials(authUser.nome),
-        }),
-      );
+      };
+
+      setUser(authenticatedUser);
+      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authenticatedUser));
       return { success: true };
     } catch (_error) {
       return { success: false, error: "Usuário ou senha inválidos" };

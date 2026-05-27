@@ -12,6 +12,7 @@ public class Usuario {
     private String username;
     private String senha;
     private String nome;
+    private String role = "ROLE_FUNCIONARIO";
 
     // Getters e Setters
     public Long getId() { return id; }
@@ -22,4 +23,8 @@ public class Usuario {
     public void setSenha(String senha) { this.senha = senha; }
     public String getNome() { return nome; }
     public void setNome(String nome) { this.nome = nome; }
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
+    public boolean isAdmin() { return "ROLE_ADMIN".equals(role); }
+    public boolean isCanViewHistory() { return isAdmin(); }
 }
