@@ -22,10 +22,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.nio.file.*;
-import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +40,6 @@ public class EncomendaController {
     private static final String ACAO_OBSERVACAO_CRIADA = "OBSERVACAO_CRIADA";
     private static final String ACAO_OBSERVACAO_ALTERADA = "OBSERVACAO_ALTERADA";
     private static final String USUARIO_NAO_IDENTIFICADO = "Usuario nao identificado";
-    private static final Set<String> USUARIOS_AUTORIZADOS_AUDITORIA_OBSERVACOES = Set.of("veronica");
     private static final ZoneId ZONA_SISTEMA = ZoneId.of("America/Sao_Paulo");
     private static final long MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
@@ -405,7 +402,6 @@ public class EncomendaController {
         if (usernameValido != null) {
             return usuarioRepository.findByUsername(usernameValido)
                     .map(usuarioEncontrado -> UsuarioResponseDTO.podeVerHistoricoObservacoes(
-                            usuarioEncontrado.getNome(),
                             usuarioEncontrado.getRole()
                     ))
                     .orElse(false);
@@ -418,7 +414,6 @@ public class EncomendaController {
                 Long id = Long.valueOf(usuarioIdValido);
                 return usuarioRepository.findById(id)
                         .map(usuarioEncontrado -> UsuarioResponseDTO.podeVerHistoricoObservacoes(
-                                usuarioEncontrado.getNome(),
                                 usuarioEncontrado.getRole()
                         ))
                         .orElse(false);
@@ -427,25 +422,7 @@ public class EncomendaController {
             }
         }
 
-        if (UsuarioResponseDTO.ROLE_ADMIN.equals(UsuarioResponseDTO.normalizarRole(role))) {
-            return true;
-        }
-
-        String primeiroNome = primeiroNomeNormalizado(usuario);
-        return USUARIOS_AUTORIZADOS_AUDITORIA_OBSERVACOES.contains(primeiroNome);
-    }
-
-    private String primeiroNomeNormalizado(String usuario) {
-        String texto = normalizarTextoOpcional(usuario, 120);
-
-        if (texto == null) {
-            return "";
-        }
-
-        String primeiroNome = texto.split("\\s+")[0];
-        return Normalizer.normalize(primeiroNome, Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", "")
-                .toLowerCase(Locale.ROOT);
+        return false;
     }
 
     private String validarStatus(String status) {

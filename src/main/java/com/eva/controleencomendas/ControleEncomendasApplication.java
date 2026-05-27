@@ -1,10 +1,7 @@
 package com.eva.controleencomendas;
 
 import com.eva.controleencomendas.model.Cliente;
-import com.eva.controleencomendas.model.Usuario;
-import com.eva.controleencomendas.dto.UsuarioResponseDTO;
 import com.eva.controleencomendas.repository.ClienteRepository;
-import com.eva.controleencomendas.repository.UsuarioRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.CommandLineRunner;
@@ -25,18 +22,8 @@ public class ControleEncomendasApplication {
 	}
 
 	@Bean
-	CommandLineRunner runner(ClienteRepository clienteRepo, UsuarioRepository usuarioRepo) {
+	CommandLineRunner runner(ClienteRepository clienteRepo) {
 		return args -> {
-			if (usuarioRepo.count() == 0) {
-				Usuario admin = new Usuario();
-				admin.setNome("Porteiro Padrao");
-				admin.setUsername("admin");
-				admin.setSenha("123");
-				admin.setRole(UsuarioResponseDTO.ROLE_ADMIN);
-				usuarioRepo.save(admin);
-				System.out.println("USUARIO ADMIN CRIADO");
-			}
-
 			if (clienteRepo.count() == 0) {
 				ObjectMapper mapper = new ObjectMapper();
 				TypeReference<List<Cliente>> typeReference = new TypeReference<List<Cliente>>() {};

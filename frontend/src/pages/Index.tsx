@@ -14,7 +14,6 @@ import { apiDelete, apiGet, apiPatch, apiPostForm } from "@/lib/api";
 import type { Cliente } from "@/types/cliente";
 
 const POLLING_INTERVAL_MS = 10000;
-const OBSERVATION_HISTORY_ALLOWED_USERS = new Set(["ana", "veronica"]);
 
 interface ApiEncomenda {
   id: number;
@@ -104,18 +103,16 @@ const mapEncomendaToPackage = (encomenda: ApiEncomenda): Package => ({
   textoAuxiliar: `Dados restaurados da API para a encomenda ${encomenda.id}.`,
 });
 
-const getFirstNameKey = (name: string | undefined) =>
-  (name ?? "")
-    .trim()
-    .split(/\s+/)[0]
-    ?.normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase() ?? "";
-
-const canUserViewObservationHistory = (user: { name: string; role: string; canViewObservationHistory?: boolean } | null) =>
+const canUserViewObservationHistory = (user: {
+  role: string;
+  isAdmin?: boolean;
+  canViewHistory?: boolean;
+  canViewObservationHistory?: boolean;
+} | null) =>
   !!user?.canViewObservationHistory ||
-  user?.role === "ROLE_ADMIN" ||
-  OBSERVATION_HISTORY_ALLOWED_USERS.has(getFirstNameKey(user?.name));
+  !!user?.canViewHistory ||
+  !!user?.isAdmin ||
+  user?.role?.trim().toUpperCase() === "ROLE_ADMIN";
 
 const appendCurrentUserParams = (
   path: string,

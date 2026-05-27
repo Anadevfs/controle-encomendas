@@ -1,39 +1,42 @@
 package com.eva.controleencomendas.dto;
 
 import com.eva.controleencomendas.model.Usuario;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.text.Normalizer;
 import java.util.Locale;
-import java.util.Set;
 
 public record UsuarioResponseDTO(
         Long id,
         String username,
         String nome,
         String role,
-        boolean canViewObservationHistory
+        @JsonProperty("isAdmin") boolean isAdmin,
+        @JsonProperty("canViewHistory") boolean canViewHistory,
+        @JsonProperty("canViewObservationHistory") boolean canViewObservationHistory
 ) {
     public static final String ROLE_ADMIN = "ROLE_ADMIN";
     public static final String ROLE_FUNCIONARIO = "ROLE_FUNCIONARIO";
-    private static final Set<String> USUARIOS_AUTORIZADOS_HISTORICO_OBSERVACOES = Set.of("veronica");
 
     public static UsuarioResponseDTO from(Usuario usuario) {
         String role = normalizarRole(usuario.getRole());
+        boolean admin = isAdmin(role);
         return new UsuarioResponseDTO(
                 usuario.getId(),
                 usuario.getUsername(),
                 usuario.getNome(),
                 role,
-                podeVerHistoricoObservacoes(usuario.getNome(), role)
+                admin,
+                admin,
+                admin
         );
     }
 
-    public static boolean podeVerHistoricoObservacoes(String nome, String role) {
-        if (ROLE_ADMIN.equals(normalizarRole(role))) {
-            return true;
-        }
+    public static boolean podeVerHistoricoObservacoes(String role) {
+        return isAdmin(role);
+    }
 
-        return USUARIOS_AUTORIZADOS_HISTORICO_OBSERVACOES.contains(primeiroNomeNormalizado(nome));
+    public static boolean isAdmin(String role) {
+        return ROLE_ADMIN.equals(normalizarRole(role));
     }
 
     public static String normalizarRole(String role) {
@@ -42,16 +45,5 @@ public record UsuarioResponseDTO(
         }
 
         return role.trim().toUpperCase(Locale.ROOT);
-    }
-
-    private static String primeiroNomeNormalizado(String nome) {
-        if (nome == null || nome.trim().isEmpty()) {
-            return "";
-        }
-
-        String primeiroNome = nome.trim().split("\\s+")[0];
-        return Normalizer.normalize(primeiroNome, Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", "")
-                .toLowerCase(Locale.ROOT);
     }
 }

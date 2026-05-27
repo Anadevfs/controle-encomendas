@@ -8,6 +8,8 @@ export interface Employee {
   email: string;
   role: string;
   initials: string;
+  isAdmin: boolean;
+  canViewHistory: boolean;
   canViewObservationHistory: boolean;
 }
 
@@ -16,6 +18,8 @@ interface AuthApiUser {
   username: string;
   nome: string;
   role: string;
+  isAdmin?: boolean;
+  canViewHistory?: boolean;
   canViewObservationHistory: boolean;
 }
 
@@ -36,18 +40,19 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 const AUTH_STORAGE_KEY = "eva.auth.user";
-const OBSERVATION_HISTORY_ALLOWED_USERS = new Set(["ana", "veronica"]);
 
-const getFirstNameKey = (name: string | undefined) =>
-  (name ?? "")
-    .trim()
-    .split(/\s+/)[0]
-    ?.normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase() ?? "";
+const normalizeRole = (role: string | undefined) => role?.trim().toUpperCase() ?? "";
 
-const canViewObservationHistory = (name: string | undefined, role: string | undefined) =>
-  role === "ROLE_ADMIN" || OBSERVATION_HISTORY_ALLOWED_USERS.has(getFirstNameKey(name));
+const canViewObservationHistory = (user: {
+  role?: string;
+  isAdmin?: boolean;
+  canViewHistory?: boolean;
+  canViewObservationHistory?: boolean;
+}) =>
+  normalizeRole(user.role) === "ROLE_ADMIN" ||
+  user.isAdmin === true ||
+  user.canViewHistory === true ||
+  user.canViewObservationHistory === true;
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<Employee | null>(() => {
@@ -63,10 +68,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       const parsedUser = JSON.parse(storedUser) as Employee;
+      const isAdmin = parsedUser.isAdmin ?? normalizeRole(parsedUser.role) === "ROLE_ADMIN";
+      const canViewHistory = isAdmin || parsedUser.canViewHistory === true;
       return {
         ...parsedUser,
-        canViewObservationHistory:
-          parsedUser.canViewObservationHistory ?? canViewObservationHistory(parsedUser.name, parsedUser.role),
+        isAdmin,
+        canViewHistory,
+        canViewObservationHistory: canViewHistory,
       };
     } catch {
       window.localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -90,7 +98,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         email: authUser.username,
         role: authUser.role,
         initials: getInitials(authUser.nome),
-        canViewObservationHistory: authUser.canViewObservationHistory,
+        isAdmin: authUser.isAdmin ?? normalizeRole(authUser.role) === "ROLE_ADMIN",
+        canViewHistory: authUser.canViewHistory ?? canViewObservationHistory(authUser),
+        canViewObservationHistory: canViewObservationHistory(authUser),
       };
       setUser(nextUser);
       window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextUser));
