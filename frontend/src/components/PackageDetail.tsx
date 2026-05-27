@@ -267,7 +267,7 @@ const ObservationAuditItem = ({ audit }: { audit: NonNullable<Package["auditoria
   const newValue = audit.valorNovo?.trim() || "observacao removida";
   const message =
     audit.acao === "OBSERVACAO_CRIADA" || !oldValue
-      ? `${user} criou observacao "${newValue}"`
+      ? `${user} criou observacao: "${newValue}"`
       : `${user} alterou de "${oldValue}" para "${newValue}"`;
 
   return (

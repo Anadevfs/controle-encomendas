@@ -313,21 +313,21 @@ public class EncomendaController {
     }
 
     private String resolverUsuarioAuditoria(Map<String, String> body) {
+        String usuarioInformado = normalizarTextoOpcional(body.get("usuario"), 120);
         String usuarioId = normalizarTextoOpcional(body.get("usuarioId"), 30);
         if (usuarioId != null) {
             try {
                 Long id = Long.valueOf(usuarioId);
                 return usuarioRepository.findById(id)
                         .map(usuario -> normalizarTextoOpcional(usuario.getNome(), 120))
-                        .orElse(USUARIO_NAO_IDENTIFICADO);
+                        .orElse(usuarioInformado != null ? usuarioInformado : USUARIO_NAO_IDENTIFICADO);
             } catch (NumberFormatException ignored) {
-                return USUARIO_NAO_IDENTIFICADO;
+                return usuarioInformado != null ? usuarioInformado : USUARIO_NAO_IDENTIFICADO;
             }
         }
 
-        String usuario = normalizarTextoOpcional(body.get("usuario"), 120);
-        if (usuario != null) {
-            return usuario;
+        if (usuarioInformado != null) {
+            return usuarioInformado;
         }
 
         return USUARIO_NAO_IDENTIFICADO;

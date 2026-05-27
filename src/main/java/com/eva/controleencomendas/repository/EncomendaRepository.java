@@ -1,6 +1,7 @@
 package com.eva.controleencomendas.repository;
 
 import com.eva.controleencomendas.model.Encomenda;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,9 +14,14 @@ import java.util.List;
 public interface EncomendaRepository extends JpaRepository<Encomenda, Long> {
 
     // Spring cria o contador automaticamente baseado no nome do método
+    @Override
+    @EntityGraph(attributePaths = "auditoriaObservacoes")
+    List<Encomenda> findAll();
+
     long countByStatus(String status);
 
     // BUSCA 100% (Termo, Status, Funcionario, Data Inicial e Final)
+    @EntityGraph(attributePaths = "auditoriaObservacoes")
     @Query("SELECT e FROM Encomenda e WHERE " +
             "(:termo IS NULL OR :termo = '' OR " +
             "LOWER(e.cliente.clientName) LIKE LOWER(concat('%', :termo, '%')) OR " +
