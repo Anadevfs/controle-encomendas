@@ -46,6 +46,17 @@ interface ApiObservationAudit {
   acao: string;
 }
 
+interface UpdateObservationRequest {
+  observacao: string;
+  usuario: string;
+  funcionario: string;
+  nomeUsuario: string;
+  atualizadoPor: string;
+  usuarioId?: string;
+  username?: string;
+  role?: string;
+}
+
 const formatPackageTime = (value: string) => {
   const directTimeMatch = value.match(/T(\d{2}:\d{2})/);
 
@@ -166,7 +177,7 @@ const buildPersistedDescription = (cliente: Cliente) =>
 
 const Index = () => {
   const { user } = useAuth();
-  const employeeName = user?.name ?? "Atendente";
+  const employeeName = user?.name?.trim() || "Atendente";
   const canViewObservationHistory = canUserViewObservationHistory(user);
   const [packageList, setPackageList] = useState<Package[]>(packages);
   const [selectedClient, setSelectedClient] = useState<Cliente | null>(null);
@@ -450,9 +461,12 @@ const Index = () => {
     if (pkg.origin === "api" && pkg.backendId) {
       try {
         const updatedFromApi = mapEncomendaToPackage(
-          await apiPatch<ApiEncomenda, { observacao: string; usuario: string; usuarioId?: string; username?: string; role?: string }>(`/encomendas/${pkg.backendId}/observacao`, {
+          await apiPatch<ApiEncomenda, UpdateObservationRequest>(`/encomendas/${pkg.backendId}/observacao`, {
             observacao: observacoes,
             usuario: employeeName,
+            funcionario: employeeName,
+            nomeUsuario: employeeName,
+            atualizadoPor: employeeName,
             usuarioId: user?.id ? String(user.id) : undefined,
             username: user?.email,
             role: user?.role,

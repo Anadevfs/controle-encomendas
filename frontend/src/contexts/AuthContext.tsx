@@ -23,6 +23,11 @@ interface AuthApiUser {
   canViewObservationHistory: boolean;
 }
 
+type StoredEmployee = Partial<Employee> & {
+  nome?: string;
+  username?: string;
+};
+
 const getInitials = (name: string) =>
   name
     .split(" ")
@@ -67,13 +72,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      const parsedUser = JSON.parse(storedUser) as Employee;
+      const parsedUser = JSON.parse(storedUser) as StoredEmployee;
+      const name = parsedUser.name?.trim() || parsedUser.nome?.trim() || "";
+      const email = parsedUser.email?.trim() || parsedUser.username?.trim() || "";
+
+      if (!name || !email || !parsedUser.id || !parsedUser.role) {
+        window.localStorage.removeItem(AUTH_STORAGE_KEY);
+        return null;
+      }
+
       const isAdmin = parsedUser.isAdmin ?? normalizeRole(parsedUser.role) === "ROLE_ADMIN";
       const canViewHistory = isAdmin || parsedUser.canViewHistory === true;
       const canViewObservationHistoryValue =
         isAdmin || parsedUser.canViewObservationHistory === true || parsedUser.canViewHistory === true;
       return {
         ...parsedUser,
+        id: parsedUser.id,
+        name,
+        email,
+        role: parsedUser.role,
+        initials: parsedUser.initials || getInitials(name),
         isAdmin,
         canViewHistory,
         canViewObservationHistory: canViewObservationHistoryValue,

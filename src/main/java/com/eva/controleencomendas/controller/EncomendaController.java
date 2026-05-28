@@ -373,32 +373,60 @@ public class EncomendaController {
     }
 
     private String resolverUsuarioAuditoria(Map<String, String> body) {
-        String usuarioInformado = normalizarTextoOpcional(body.get("usuario"), 120);
-        String usuarioId = normalizarTextoOpcional(body.get("usuarioId"), 30);
-        String username = normalizarTextoOpcional(body.get("username"), 120);
+        String usuarioInformado = primeiroTextoValido(
+                body,
+                120,
+                "usuario",
+                "funcionario",
+                "nomeUsuario",
+                "atualizadoPor",
+                "observacaoAtualizadaPor"
+        );
+        String usuarioId = primeiroTextoValido(body, 30, "usuarioId", "userId", "funcionarioId");
+        String username = primeiroTextoValido(body, 120, "username", "email");
 
         if (username != null) {
-            return usuarioRepository.findByUsername(username)
+            String usuarioEncontrado = usuarioRepository.findByUsername(username)
                     .map(usuario -> normalizarTextoOpcional(usuario.getNome(), 120))
-                    .orElse(usuarioInformado != null ? usuarioInformado : USUARIO_NAO_IDENTIFICADO);
+                    .orElse(null);
+
+            return usuarioEncontrado != null
+                    ? usuarioEncontrado
+                    : usuarioOuNaoIdentificado(usuarioInformado);
         }
 
         if (usuarioId != null) {
             try {
                 Long id = Long.valueOf(usuarioId);
-                return usuarioRepository.findById(id)
+                String usuarioEncontrado = usuarioRepository.findById(id)
                         .map(usuario -> normalizarTextoOpcional(usuario.getNome(), 120))
-                        .orElse(usuarioInformado != null ? usuarioInformado : USUARIO_NAO_IDENTIFICADO);
+                        .orElse(null);
+
+                return usuarioEncontrado != null
+                        ? usuarioEncontrado
+                        : usuarioOuNaoIdentificado(usuarioInformado);
             } catch (NumberFormatException ignored) {
-                return usuarioInformado != null ? usuarioInformado : USUARIO_NAO_IDENTIFICADO;
+                return usuarioOuNaoIdentificado(usuarioInformado);
             }
         }
 
-        if (usuarioInformado != null) {
-            return usuarioInformado;
+        return usuarioOuNaoIdentificado(usuarioInformado);
+    }
+
+    private String usuarioOuNaoIdentificado(String usuario) {
+        return usuario != null ? usuario : USUARIO_NAO_IDENTIFICADO;
+    }
+
+    private String primeiroTextoValido(Map<String, String> body, int maxLength, String... fieldNames) {
+        for (String fieldName : fieldNames) {
+            String value = normalizarTextoOpcional(body.get(fieldName), maxLength);
+
+            if (value != null) {
+                return value;
+            }
         }
 
-        return USUARIO_NAO_IDENTIFICADO;
+        return null;
     }
 
     private boolean podeAcessarAuditoriaObservacoes(Map<String, String> body) {
