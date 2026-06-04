@@ -15,6 +15,7 @@ public class Usuario {
     private String senha;
     private String nome;
     private String role;
+    @Column(name = "can_view_observation_history")
     private boolean canViewObservationHistory;
 
     // Getters e Setters
