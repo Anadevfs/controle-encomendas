@@ -197,7 +197,7 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveObservation, canViewObservatio
             )}
           </div>
 
-          {canViewObservationHistory && pkg.auditoriaObservacoes && pkg.auditoriaObservacoes.length > 0 && (
+          {canViewObservationHistory && (
             <details className="mt-3 rounded-lg bg-surface-2 px-3 py-2">
               <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-foreground">
                 <History className="h-3.5 w-3.5 text-muted-foreground" />
@@ -207,9 +207,13 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveObservation, canViewObservatio
                 <p className="font-heading text-xs font-semibold text-foreground">
                   Hist{"\u00f3"}rico de observa{"\u00e7\u00f5"}es
                 </p>
-                {pkg.auditoriaObservacoes.map((audit) => (
-                  <ObservationAuditItem key={audit.id} audit={audit} />
-                ))}
+                {pkg.auditoriaObservacoes && pkg.auditoriaObservacoes.length > 0 ? (
+                  pkg.auditoriaObservacoes.map((audit) => (
+                    <ObservationAuditItem key={audit.id} audit={audit} />
+                  ))
+                ) : (
+                  <p className="text-xs text-muted-foreground">Nenhuma altera{"\u00e7\u00e3"}o registrada.</p>
+                )}
               </div>
             </details>
           )}

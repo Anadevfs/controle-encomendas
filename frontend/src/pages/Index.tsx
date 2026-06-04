@@ -46,8 +46,7 @@ interface ApiObservationAudit {
   acao: string;
 }
 
-interface UpdateObservationRequest {
-  observacao: string;
+interface CurrentUserPayload {
   usuario: string;
   funcionario: string;
   nomeUsuario: string;
@@ -117,11 +116,9 @@ const mapEncomendaToPackage = (encomenda: ApiEncomenda): Package => ({
 const canUserViewObservationHistory = (user: {
   role: string;
   isAdmin?: boolean;
-  canViewHistory?: boolean;
   canViewObservationHistory?: boolean;
 } | null) =>
   !!user?.canViewObservationHistory ||
-  !!user?.canViewHistory ||
   !!user?.isAdmin ||
   user?.role?.trim().toUpperCase() === "ROLE_ADMIN";
 
@@ -141,6 +138,23 @@ const appendCurrentUserParams = (
   params.set("role", user.role);
 
   return `${basePath}?${params.toString()}`;
+};
+
+const buildCurrentUserPayload = (
+  user: { id: number; name: string; email: string; role: string } | null,
+  fallbackName: string
+): CurrentUserPayload => {
+  const userName = user?.name?.trim() || fallbackName;
+
+  return {
+    usuario: userName,
+    funcionario: userName,
+    nomeUsuario: userName,
+    atualizadoPor: userName,
+    usuarioId: user?.id ? String(user.id) : undefined,
+    username: user?.email,
+    role: user?.role,
+  };
 };
 
 const sortPackages = (items: Package[]) =>
@@ -177,7 +191,7 @@ const buildPersistedDescription = (cliente: Cliente) =>
 
 const Index = () => {
   const { user } = useAuth();
-  const employeeName = user?.name?.trim() || "Atendente";
+  const employeeName = user?.name ?? "Atendente";
   const canViewObservationHistory = canUserViewObservationHistory(user);
   const [packageList, setPackageList] = useState<Package[]>(packages);
   const [selectedClient, setSelectedClient] = useState<Cliente | null>(null);
@@ -461,15 +475,9 @@ const Index = () => {
     if (pkg.origin === "api" && pkg.backendId) {
       try {
         const updatedFromApi = mapEncomendaToPackage(
-          await apiPatch<ApiEncomenda, UpdateObservationRequest>(`/encomendas/${pkg.backendId}/observacao`, {
+          await apiPatch<ApiEncomenda, { observacao: string } & CurrentUserPayload>(`/encomendas/${pkg.backendId}/observacao`, {
             observacao: observacoes,
-            usuario: employeeName,
-            funcionario: employeeName,
-            nomeUsuario: employeeName,
-            atualizadoPor: employeeName,
-            usuarioId: user?.id ? String(user.id) : undefined,
-            username: user?.email,
-            role: user?.role,
+            ...buildCurrentUserPayload(user, employeeName),
           })
         );
         const enrichedUpdatedPackage: Package = {

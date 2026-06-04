@@ -374,55 +374,43 @@ public class EncomendaController {
 
     private String resolverUsuarioAuditoria(Map<String, String> body) {
         String usuarioInformado = primeiroTextoValido(
-                body,
-                120,
-                "usuario",
-                "funcionario",
-                "nomeUsuario",
-                "atualizadoPor",
-                "observacaoAtualizadaPor"
+                body.get("usuario"),
+                body.get("funcionario"),
+                body.get("nomeUsuario"),
+                body.get("atualizadoPor")
         );
-        String usuarioId = primeiroTextoValido(body, 30, "usuarioId", "userId", "funcionarioId");
-        String username = primeiroTextoValido(body, 120, "username", "email");
+        String usuarioId = normalizarTextoOpcional(body.get("usuarioId"), 30);
+        String username = normalizarTextoOpcional(body.get("username"), 120);
 
         if (username != null) {
-            String usuarioEncontrado = usuarioRepository.findByUsername(username)
+            return usuarioRepository.findByUsername(username)
                     .map(usuario -> normalizarTextoOpcional(usuario.getNome(), 120))
-                    .orElse(null);
-
-            return usuarioEncontrado != null
-                    ? usuarioEncontrado
-                    : usuarioOuNaoIdentificado(usuarioInformado);
+                    .orElse(usuarioInformado != null ? usuarioInformado : USUARIO_NAO_IDENTIFICADO);
         }
 
         if (usuarioId != null) {
             try {
                 Long id = Long.valueOf(usuarioId);
-                String usuarioEncontrado = usuarioRepository.findById(id)
+                return usuarioRepository.findById(id)
                         .map(usuario -> normalizarTextoOpcional(usuario.getNome(), 120))
-                        .orElse(null);
-
-                return usuarioEncontrado != null
-                        ? usuarioEncontrado
-                        : usuarioOuNaoIdentificado(usuarioInformado);
+                        .orElse(usuarioInformado != null ? usuarioInformado : USUARIO_NAO_IDENTIFICADO);
             } catch (NumberFormatException ignored) {
-                return usuarioOuNaoIdentificado(usuarioInformado);
+                return usuarioInformado != null ? usuarioInformado : USUARIO_NAO_IDENTIFICADO;
             }
         }
 
-        return usuarioOuNaoIdentificado(usuarioInformado);
+        if (usuarioInformado != null) {
+            return usuarioInformado;
+        }
+
+        return USUARIO_NAO_IDENTIFICADO;
     }
 
-    private String usuarioOuNaoIdentificado(String usuario) {
-        return usuario != null ? usuario : USUARIO_NAO_IDENTIFICADO;
-    }
-
-    private String primeiroTextoValido(Map<String, String> body, int maxLength, String... fieldNames) {
-        for (String fieldName : fieldNames) {
-            String value = normalizarTextoOpcional(body.get(fieldName), maxLength);
-
-            if (value != null) {
-                return value;
+    private String primeiroTextoValido(String... values) {
+        for (String value : values) {
+            String textoValido = normalizarTextoOpcional(value, 120);
+            if (textoValido != null) {
+                return textoValido;
             }
         }
 
@@ -444,7 +432,7 @@ public class EncomendaController {
         if (usernameValido != null) {
             return usuarioRepository.findByUsername(usernameValido)
                     .map(usuarioEncontrado -> UsuarioResponseDTO.podeVerHistoricoObservacoes(
-                            usuarioEncontrado.getRole()
+                            usuarioEncontrado
                     ))
                     .orElse(UsuarioResponseDTO.podeVerHistoricoObservacoes(role));
         }
@@ -456,7 +444,7 @@ public class EncomendaController {
                 Long id = Long.valueOf(usuarioIdValido);
                 return usuarioRepository.findById(id)
                         .map(usuarioEncontrado -> UsuarioResponseDTO.podeVerHistoricoObservacoes(
-                                usuarioEncontrado.getRole()
+                                usuarioEncontrado
                         ))
                         .orElse(UsuarioResponseDTO.podeVerHistoricoObservacoes(role));
             } catch (NumberFormatException ignored) {

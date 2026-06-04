@@ -15,6 +15,7 @@ public class Usuario {
     private String senha;
     private String nome;
     private String role;
+    private boolean canViewObservationHistory;
 
     // Getters e Setters
     public Long getId() { return id; }
@@ -27,4 +28,6 @@ public class Usuario {
     public void setNome(String nome) { this.nome = nome; }
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+    public boolean isCanViewObservationHistory() { return canViewObservationHistory; }
+    public void setCanViewObservationHistory(boolean canViewObservationHistory) { this.canViewObservationHistory = canViewObservationHistory; }
 }

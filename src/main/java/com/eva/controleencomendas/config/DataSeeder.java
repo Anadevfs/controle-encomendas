@@ -31,6 +31,7 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         usuario.setRole(UsuarioResponseDTO.ROLE_FUNCIONARIO);
+        usuario.setCanViewObservationHistory(podeVerHistoricoComoFuncionario(username));
         usuarioRepository.save(usuario);
     }
 
@@ -39,17 +40,22 @@ public class DataSeeder implements CommandLineRunner {
         preencherDadosBase(usuario, "ana@eva.com", "Ana");
         usuario.setSenha("1520");
         usuario.setRole(UsuarioResponseDTO.ROLE_ADMIN);
+        usuario.setCanViewObservationHistory(true);
         usuarioRepository.save(usuario);
     }
 
     private void garantirAnaComoUnicaAdmin() {
         usuarioRepository.findAll().forEach(usuario -> {
-            if ("ana@eva.com".equalsIgnoreCase(usuario.getUsername())) {
+            if (UsuarioResponseDTO.isAna(usuario.getUsername())) {
                 usuario.setNome("Ana");
                 usuario.setSenha("1520");
                 usuario.setRole(UsuarioResponseDTO.ROLE_ADMIN);
+                usuario.setCanViewObservationHistory(true);
             } else if (UsuarioResponseDTO.isAdmin(usuario.getRole())) {
                 usuario.setRole(UsuarioResponseDTO.ROLE_FUNCIONARIO);
+                usuario.setCanViewObservationHistory(podeVerHistoricoComoFuncionario(usuario.getUsername()));
+            } else {
+                usuario.setCanViewObservationHistory(podeVerHistoricoComoFuncionario(usuario.getUsername()));
             }
 
             usuarioRepository.save(usuario);
@@ -59,5 +65,9 @@ public class DataSeeder implements CommandLineRunner {
     private void preencherDadosBase(Usuario usuario, String username, String nome) {
         usuario.setUsername(username);
         usuario.setNome(nome);
+    }
+
+    private boolean podeVerHistoricoComoFuncionario(String username) {
+        return "veronica@eva.com".equalsIgnoreCase(username);
     }
 }

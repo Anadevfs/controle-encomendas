@@ -23,10 +23,7 @@ interface AuthApiUser {
   canViewObservationHistory: boolean;
 }
 
-type StoredEmployee = Partial<Employee> & {
-  nome?: string;
-  username?: string;
-};
+type StoredEmployee = Partial<Employee> & Partial<AuthApiUser>;
 
 const getInitials = (name: string) =>
   name
@@ -51,12 +48,10 @@ const normalizeRole = (role: string | undefined) => role?.trim().toUpperCase() ?
 const canViewObservationHistory = (user: {
   role?: string;
   isAdmin?: boolean;
-  canViewHistory?: boolean;
   canViewObservationHistory?: boolean;
 }) =>
   normalizeRole(user.role) === "ROLE_ADMIN" ||
   user.isAdmin === true ||
-  user.canViewHistory === true ||
   user.canViewObservationHistory === true;
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -73,24 +68,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       const parsedUser = JSON.parse(storedUser) as StoredEmployee;
-      const name = parsedUser.name?.trim() || parsedUser.nome?.trim() || "";
-      const email = parsedUser.email?.trim() || parsedUser.username?.trim() || "";
+      const name = (parsedUser.name || parsedUser.nome || "").trim();
+      const email = (parsedUser.email || parsedUser.username || "").trim();
+      const role = parsedUser.role || "";
+      const id = Number(parsedUser.id);
+      const isAdmin = parsedUser.isAdmin ?? normalizeRole(role) === "ROLE_ADMIN";
+      const canViewHistory = isAdmin || parsedUser.canViewHistory === true;
+      const canViewObservationHistoryValue =
+        isAdmin || parsedUser.canViewObservationHistory === true;
 
-      if (!name || !email || !parsedUser.id || !parsedUser.role) {
+      if (!name || !email || Number.isNaN(id)) {
         window.localStorage.removeItem(AUTH_STORAGE_KEY);
         return null;
       }
 
-      const isAdmin = parsedUser.isAdmin ?? normalizeRole(parsedUser.role) === "ROLE_ADMIN";
-      const canViewHistory = isAdmin || parsedUser.canViewHistory === true;
-      const canViewObservationHistoryValue =
-        isAdmin || parsedUser.canViewObservationHistory === true || parsedUser.canViewHistory === true;
       return {
-        ...parsedUser,
-        id: parsedUser.id,
+        id,
         name,
         email,
-        role: parsedUser.role,
+        role,
         initials: parsedUser.initials || getInitials(name),
         isAdmin,
         canViewHistory,
@@ -119,7 +115,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         role: authUser.role,
         initials: getInitials(authUser.nome),
         isAdmin: authUser.isAdmin ?? normalizeRole(authUser.role) === "ROLE_ADMIN",
-        canViewHistory: authUser.canViewHistory ?? canViewObservationHistory(authUser),
+        canViewHistory: authUser.canViewHistory ?? (normalizeRole(authUser.role) === "ROLE_ADMIN"),
         canViewObservationHistory: canViewObservationHistory(authUser),
       };
       setUser(nextUser);
