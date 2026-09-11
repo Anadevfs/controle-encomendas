@@ -22,6 +22,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { formatPackageDateTimeValue, formatPackageReceivedLabel } from "@/lib/package-datetime";
+import { getEffectivePackageStatus } from "@/lib/package-status";
 
 const statusConfig = {
   enviado: { label: "Entregue", bgClass: "bg-eva-green-light", textClass: "text-eva-green", borderClass: "border-eva-green/30" },
@@ -83,7 +84,8 @@ const PackageDetail = ({ pkg, onMarkAsSent, onSaveObservation, canViewObservatio
     );
   }
 
-  const cfg = statusConfig[pkg.status];
+  const effectiveStatus = getEffectivePackageStatus(pkg);
+  const cfg = statusConfig[effectiveStatus];
   const hasObservationContent = observationInput.trim().length > 0;
   const hasObservationChanged = observationInput !== (pkg.observacoes ?? "");
   const canSaveObservation = hasObservationContent && hasObservationChanged;

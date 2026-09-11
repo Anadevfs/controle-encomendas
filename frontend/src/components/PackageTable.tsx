@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatPackageScheduleLabel } from "@/lib/package-datetime";
+import { getEffectivePackageStatus } from "@/lib/package-status";
 
 const statusConfig = {
   enviado: { label: "Entregue", dotClass: "bg-eva-green", textClass: "text-eva-green", bgClass: "bg-eva-green-light" },
@@ -59,10 +60,11 @@ const normalizeText = (value: string | undefined) =>
     .trim();
 
 const getPackageStatusTerms = (pkg: Package) => {
-  const statusLabel = statusConfig[pkg.status].label;
-  const terms = [pkg.status, statusLabel];
+  const effectiveStatus = getEffectivePackageStatus(pkg);
+  const statusLabel = statusConfig[effectiveStatus].label;
+  const terms = [effectiveStatus, statusLabel];
 
-  if (pkg.status === "pendente") {
+  if (effectiveStatus === "pendente") {
     terms.push("Pendente");
   }
 
@@ -127,11 +129,13 @@ const matchesStatusFilter = (pkg: Package, statusFilter: StatusFilter) => {
     return true;
   }
 
+  const effectiveStatus = getEffectivePackageStatus(pkg);
+
   if (statusFilter === "comunicado" || statusFilter === "pendente") {
-    return pkg.status === "pendente";
+    return effectiveStatus === "pendente";
   }
 
-  return pkg.status === statusFilter;
+  return effectiveStatus === statusFilter;
 };
 
 const matchesDateFilter = (
@@ -393,7 +397,8 @@ const PackageTable = ({ packages, selectedId, onSelect, onDelete }: PackageTable
               </tr>
             )}
             {filteredPackages.map((pkg, i) => {
-              const cfg = statusConfig[pkg.status];
+              const effectiveStatus = getEffectivePackageStatus(pkg);
+              const cfg = statusConfig[effectiveStatus];
               const isSelected = selectedId === pkg.id;
 
               return (

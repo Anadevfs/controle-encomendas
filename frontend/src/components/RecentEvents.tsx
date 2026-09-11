@@ -5,6 +5,7 @@ import { Archive, CheckCircle2, AlertTriangle, Info, Search } from "lucide-react
 import { Input } from "@/components/ui/input";
 import type { Package } from "@/data/mockData";
 import { formatPackageScheduleLabel } from "@/lib/package-datetime";
+import { getEffectivePackageStatus } from "@/lib/package-status";
 
 const statusLabelMap = {
   enviado: "Entregue",
@@ -78,8 +79,9 @@ const RecentEvents = ({ packages }: RecentEventsProps) => {
           </div>
         )}
         {filteredPackages.map((pkg, i) => {
+          const effectiveStatus = getEffectivePackageStatus(pkg);
           const eventType =
-            pkg.status === "enviado" ? "success" : pkg.status === "atrasado" ? "danger" : "info";
+            effectiveStatus === "enviado" ? "success" : effectiveStatus === "atrasado" ? "danger" : "info";
           const cfg = typeConfig[eventType];
           const Icon = cfg.icon;
           return (
@@ -97,7 +99,7 @@ const RecentEvents = ({ packages }: RecentEventsProps) => {
                   {pkg.cliente} · Caixa Postal {pkg.sala} · {pkg.empresa || "Empresa nao informada"}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
-                  Funcionario: {pkg.funcionario || "Nao informado"} · Status: {statusLabelMap[pkg.status]}
+                  Funcionario: {pkg.funcionario || "Nao informado"} · Status: {statusLabelMap[effectiveStatus]}
                 </p>
               </div>
               <span className="font-heading text-xs tabular-nums text-muted-foreground">{formatPackageScheduleLabel(pkg)}</span>

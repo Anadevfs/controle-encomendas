@@ -11,6 +11,7 @@ import { packages, Package } from "@/data/mockData";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/use-toast";
 import { apiDelete, apiGet, apiPatch, apiPostForm } from "@/lib/api";
+import { getEffectivePackageStatus } from "@/lib/package-status";
 import type { Cliente } from "@/types/cliente";
 
 const POLLING_INTERVAL_MS = 10000;
@@ -216,9 +217,9 @@ const Index = () => {
 
     return [
       { title: "Encomendas hoje", value: packagesToday.length, icon: PackageIcon, accentBg: "bg-eva-red-light", accentText: "text-primary", accentIcon: "text-primary" },
-      { title: "Comunicadas", value: packageList.filter((pkg) => pkg.status === "pendente").length, icon: Clock, accentBg: "bg-eva-warning-light", accentText: "text-eva-warning", accentIcon: "text-eva-warning" },
-      { title: "Entregues", value: packageList.filter((pkg) => pkg.status === "enviado").length, icon: Send, accentBg: "bg-eva-green-light", accentText: "text-eva-green", accentIcon: "text-eva-green" },
-      { title: "Atrasadas", value: packageList.filter((pkg) => pkg.status === "atrasado").length, icon: AlertTriangle, accentBg: "bg-eva-danger-light", accentText: "text-eva-danger", accentIcon: "text-eva-danger" },
+      { title: "Comunicadas", value: packageList.filter((pkg) => getEffectivePackageStatus(pkg) === "pendente").length, icon: Clock, accentBg: "bg-eva-warning-light", accentText: "text-eva-warning", accentIcon: "text-eva-warning" },
+      { title: "Entregues", value: packageList.filter((pkg) => getEffectivePackageStatus(pkg) === "enviado").length, icon: Send, accentBg: "bg-eva-green-light", accentText: "text-eva-green", accentIcon: "text-eva-green" },
+      { title: "Atrasadas", value: packageList.filter((pkg) => getEffectivePackageStatus(pkg) === "atrasado").length, icon: AlertTriangle, accentBg: "bg-eva-danger-light", accentText: "text-eva-danger", accentIcon: "text-eva-danger" },
     ];
   }, [packageList]);
 
